@@ -1,0 +1,6 @@
+{
+  "name": "Enochian Magic",
+  "description": "Comprehensive Enochian Keys database, interactive sigil generator, invocation progress tracker, and secure ritual journal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
