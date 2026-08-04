@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,8 +29,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
@@ -54,8 +60,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.JournalEntry
@@ -68,6 +76,7 @@ import com.example.ui.theme.EnochianGoldLight
 import com.example.ui.theme.GoldOutline
 import com.example.ui.theme.MysticViolet
 import com.example.utils.EsotericUtils
+import com.example.utils.PdfExportUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -102,12 +111,37 @@ fun RitualJournalScreen(
     onDeleteJournalEntry: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val pdfExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { os ->
+                    val success = PdfExportUtils.writeJournalPdfToStream(journalEntries, os)
+                    if (success) {
+                        Toast.makeText(context, "Ritual Journal PDF exported successfully!", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Failed to generate PDF document.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Export error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     val availableMoods = remember {
         listOf("All Moods", "Serene 🕯️", "Exalted 🌟", "Focused 👁️", "Tranquil 🌌", "Mystic ⚡", "Reflective 🌒", "Purified 🌿")
     }
 
     var selectedMoodFilter by remember { mutableStateOf("All Moods") }
     var selectedMoodForNewEntry by remember { mutableStateOf("Serene 🕯️") }
+
+    // State for the inline "New entry" box below search box
+    var inlineOutcomeNotes by remember { mutableStateOf("") }
+    var inlineInsights by remember { mutableStateOf("") }
+    var inlineMood by remember { mutableStateOf("Serene 🕯️") }
 
     var isShowNewEntryDialog by remember { mutableStateOf(false) }
 
@@ -122,395 +156,683 @@ fun RitualJournalScreen(
 
     var isCallDropdownExpanded by remember { mutableStateOf(false) }
 
-    Column(
+    val filteredEntries = journalEntries.filter { entry ->
+        val matchesSearch = searchQuery.isBlank() ||
+                entry.title.contains(searchQuery, ignoreCase = true) ||
+                entry.intention.contains(searchQuery, ignoreCase = true) ||
+                entry.outcomeNotes.contains(searchQuery, ignoreCase = true) ||
+                entry.insights.contains(searchQuery, ignoreCase = true) ||
+                entry.keyOrCallUsed.contains(searchQuery, ignoreCase = true) ||
+                entry.mood.contains(searchQuery, ignoreCase = true)
+
+        val matchesMood = selectedMoodFilter == "All Moods" || entry.mood == selectedMoodFilter
+
+        matchesSearch && matchesMood
+    }
+
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Ritual Outcome Journal",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = EnochianGold
-                )
-                Text(
-                    text = "Secure cloud-synced grimoire of insights & outcomes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(EnochianGold)
-                    .clickable { isShowNewEntryDialog = true }
-                    .padding(12.dp)
-                    .testTag("add_journal_entry_button")
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Entry", tint = Color.Black)
+                Column {
+                    Text(
+                        text = "Ritual Outcome Journal",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EnochianGold
+                    )
+                    Text(
+                        text = "Secure cloud-synced grimoire of insights & outcomes",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(EnochianGold)
+                        .clickable { isShowNewEntryDialog = true }
+                        .padding(12.dp)
+                        .testTag("add_journal_entry_button")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Entry", tint = Color.Black)
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        item {
+            // Search Bar at Top
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier.fillMaxWidth().testTag("journal_search_input"),
+                placeholder = { Text("Search ritual outcomes, moods & insights...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = EnochianGold) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = EnochianGold,
+                    unfocusedBorderColor = GoldOutline,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+        }
 
-        // Cloud Sync Status Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, GoldOutline, RoundedCornerShape(12.dp)),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Row(
+        item {
+            // "New entry" Box
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .testTag("new_entry_box_card")
+                    .border(1.5.dp, EnochianGold, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "Encrypted",
-                        tint = EnochianGold,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = "Cloud Backup: Encrypted Active",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (lastCloudSyncTime != null) "Last synced: ${formatDateShort(lastCloudSyncTime)}" else "Sync pending",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (isSyncingCloud) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = EnochianGold,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { onTriggerCloudSync() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                            .testTag("sync_cloud_button")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CloudSync, contentDescription = "Sync", tint = EnochianGold, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sync Now", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Gemini AI Sentiment Analysis Header Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, GoldOutline, RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(MysticViolet.copy(alpha = 0.25f))
-                                .border(1.dp, MysticViolet, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
                             Icon(
-                                imageVector = Icons.Default.Psychology,
-                                contentDescription = "Gemini AI Sentiment",
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "New Entry",
                                 tint = EnochianGold,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Gemini Emotional Sentiment AI",
+                                text = "New entry",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = EnochianGold
                             )
+                        }
+
+                        // Automatically generated Date of Ritual in YYYY-MM-DD, HH:MM:SS
+                        val ritualDateFormatted = formatDateWithTime(System.currentTimeMillis())
+                        Box(
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+                                .border(1.dp, GoldOutline, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
                             Text(
-                                text = "Parses ritual logs & tracks psychological growth",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "Date: $ritualDateFormatted",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = EnochianGold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Ritual Outcome Input
+                    OutlinedTextField(
+                        value = inlineOutcomeNotes,
+                        onValueChange = { inlineOutcomeNotes = it },
+                        modifier = Modifier.fillMaxWidth().testTag("new_entry_outcome_input"),
+                        label = { Text("Ritual Outcome") },
+                        placeholder = { Text("Describe ritual results, manifestations & observations...") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EnochianGold,
+                            unfocusedBorderColor = GoldOutline
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        maxLines = 3
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Mood Input
+                    Text(
+                        text = "Mood:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EnochianGold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(availableMoods.filter { it != "All Moods" }) { moodOption ->
+                            FilterChip(
+                                selected = inlineMood == moodOption,
+                                onClick = { inlineMood = moodOption },
+                                label = { Text(moodOption, fontSize = 11.sp) },
+                                modifier = Modifier.testTag("inline_mood_${moodOption.replace(" ", "_")}"),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = EnochianGold,
+                                    selectedLabelColor = Color.Black,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = GoldOutline,
+                                    selectedBorderColor = EnochianGold,
+                                    enabled = true,
+                                    selected = inlineMood == moodOption
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Insights Input
+                    val inlineInsightsWordCount = if (inlineInsights.isBlank()) 0 else inlineInsights.trim().split(Regex("\\s+")).size
+                    OutlinedTextField(
+                        value = inlineInsights,
+                        onValueChange = { inlineInsights = it },
+                        modifier = Modifier.fillMaxWidth().testTag("new_entry_insights_input"),
+                        label = { Text("Insights") },
+                        placeholder = { Text("Record spiritual revelations, visions, or lessons learned...") },
+                        supportingText = {
+                            Text(
+                                text = "$inlineInsightsWordCount ${if (inlineInsightsWordCount == 1) "word" else "words"}",
+                                fontSize = 11.sp,
+                                color = EnochianGold,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EnochianGold,
+                            unfocusedBorderColor = GoldOutline
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        maxLines = 3
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Save Entry Button
+                    Button(
+                        onClick = {
+                            if (inlineOutcomeNotes.isNotBlank() || inlineInsights.isNotBlank()) {
+                                val computedTitle = if (inlineOutcomeNotes.length > 30) {
+                                    inlineOutcomeNotes.take(30) + "..."
+                                } else if (inlineOutcomeNotes.isNotBlank()) {
+                                    inlineOutcomeNotes
+                                } else {
+                                    "Ritual Working"
+                                }
+
+                                onSaveJournalEntry(
+                                    computedTitle,
+                                    EnochianData.CALLS.first().title,
+                                    EsotericUtils.getCurrentPlanetaryHour(),
+                                    EsotericUtils.getCurrentMoonPhase(),
+                                    "Ritual Outcome Logging",
+                                    inlineOutcomeNotes,
+                                    inlineInsights,
+                                    5,
+                                    inlineMood
+                                )
+
+                                inlineOutcomeNotes = ""
+                                inlineInsights = ""
+                                inlineMood = "Serene 🕯️"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("save_new_entry_box_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = EnochianGold, contentColor = Color.Black),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save to Ritual Log", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            // Cloud Sync Status Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GoldOutline, RoundedCornerShape(12.dp)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Encrypted",
+                            tint = EnochianGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Cloud Backup: Encrypted Active",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (lastCloudSyncTime != null) "Last synced: ${formatDateShort(lastCloudSyncTime)}" else "Sync pending",
+                                fontSize = 10.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
-                    Button(
-                        onClick = onAnalyzeSentiments,
-                        enabled = !isAnalyzingSentiment && journalEntries.isNotEmpty(),
-                        modifier = Modifier.testTag("analyze_sentiment_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MysticViolet,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (isAnalyzingSentiment) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
+                    if (isSyncingCloud) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = EnochianGold,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onTriggerCloudSync() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .testTag("sync_cloud_button")
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.CloudSync, contentDescription = "Sync", tint = EnochianGold, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Analyze", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Sync Now", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
                             }
                         }
                     }
                 }
+            }
+        }
 
-                if (isAnalyzingSentiment) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                            .padding(12.dp),
-                        contentAlignment = Alignment.Center
+        item {
+            // PDF Export Document Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("export_pdf_card")
+                    .border(1.dp, GoldOutline, RoundedCornerShape(12.dp)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = EnochianGold, strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(10.dp))
+                        Icon(
+                            imageVector = Icons.Default.PictureAsPdf,
+                            contentDescription = "PDF Export",
+                            tint = EnochianGold,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
                             Text(
-                                text = "Gemini is analyzing your spiritual trajectory...",
-                                fontSize = 12.sp,
-                                color = EnochianGold
+                                text = "Export Journal as PDF",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Formatted grimoire document (${journalEntries.size} entries)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                }
 
-                if (sentimentAnalysisResult != null && !isAnalyzingSentiment) {
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Resonance Score & Mindstate Banner
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                            .border(1.dp, GoldOutline, RoundedCornerShape(12.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "DOMINANT SPIRITUAL STATE",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = sentimentAnalysisResult.dominantState,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = EnochianGold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = sentimentAnalysisResult.progressTrend,
-                                fontSize = 11.sp,
-                                color = CelestialCyan
-                            )
-                        }
-
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // Quick Save to Downloads
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(EnochianGold.copy(alpha = 0.15f))
-                                .border(1.5.dp, EnochianGold, CircleShape),
-                            contentAlignment = Alignment.Center
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable {
+                                    if (journalEntries.isEmpty()) {
+                                        Toast.makeText(context, "No ritual journal entries to export.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        val exportedFile = PdfExportUtils.exportToDownloads(context, journalEntries)
+                                        if (exportedFile != null) {
+                                            Toast.makeText(context, "PDF saved to Downloads/${exportedFile.name}", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            val defaultFileName = "ritual_journal_${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.pdf"
+                                            pdfExportLauncher.launch(defaultFileName)
+                                        }
+                                    }
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .testTag("quick_pdf_download_button")
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Download, contentDescription = "Quick Save", tint = EnochianGold, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Downloads", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
+                            }
+                        }
+
+                        // Export via Document Picker
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(EnochianGold)
+                                .clickable {
+                                    if (journalEntries.isEmpty()) {
+                                        Toast.makeText(context, "No ritual journal entries to export.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        val defaultFileName = "ritual_journal_${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.pdf"
+                                        pdfExportLauncher.launch(defaultFileName)
+                                    }
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .testTag("export_pdf_button")
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = Color.Black, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Export PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            // Gemini AI Sentiment Analysis Header Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GoldOutline, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(MysticViolet.copy(alpha = 0.25f))
+                                    .border(1.dp, MysticViolet, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Psychology,
+                                    contentDescription = "Gemini AI Sentiment",
+                                    tint = EnochianGold,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
                                 Text(
-                                    text = "${sentimentAnalysisResult.overallScore}%",
-                                    fontSize = 15.sp,
+                                    text = "Gemini Emotional Sentiment AI",
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = EnochianGold
                                 )
                                 Text(
-                                    text = "Score",
-                                    fontSize = 9.sp,
+                                    text = "Parses ritual logs & tracks psychological growth",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onAnalyzeSentiments,
+                            enabled = !isAnalyzingSentiment && journalEntries.isNotEmpty(),
+                            modifier = Modifier.testTag("analyze_sentiment_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MysticViolet,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            if (isAnalyzingSentiment) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Analyze", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    if (isAnalyzingSentiment) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = EnochianGold, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Gemini is analyzing your spiritual trajectory...",
+                                    fontSize = 12.sp,
+                                    color = EnochianGold
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    if (sentimentAnalysisResult != null && !isAnalyzingSentiment) {
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                    // Emotional Dimension Meters
-                    Text(
-                        text = "EMOTIONAL DIMENSION METERS",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = EnochianGold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SentimentMeter(label = "Devotion & Focus", percentage = sentimentAnalysisResult.devotionPercent, color = EnochianGold)
-                        SentimentMeter(label = "Clarity & Vision", percentage = sentimentAnalysisResult.clarityPercent, color = CelestialCyan)
-                        SentimentMeter(label = "Tranquility & Peace", percentage = sentimentAnalysisResult.tranquilityPercent, color = ElementalGreen)
-                        SentimentMeter(label = "Spiritual Intensity", percentage = sentimentAnalysisResult.intensityPercent, color = MysticViolet)
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Emotional Progress Chart Visualizer
-                    EmotionalProgressChart(
-                        journalSentiments = sentimentAnalysisResult.journalSentiments,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Gemini Summary
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MysticViolet.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
-                            .border(1.dp, MysticViolet, RoundedCornerShape(10.dp))
-                            .padding(12.dp)
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Psychology, contentDescription = null, tint = MysticViolet, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
+                        // Resonance Score & Mindstate Banner
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                .border(1.dp, GoldOutline, RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "GEMINI ESOTERIC TRAJECTORY SUMMARY",
-                                    fontSize = 11.sp,
+                                    text = "DOMINANT SPIRITUAL STATE",
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MysticViolet
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = sentimentAnalysisResult.dominantState,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EnochianGold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = sentimentAnalysisResult.progressTrend,
+                                    fontSize = 11.sp,
+                                    color = CelestialCyan
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = sentimentAnalysisResult.esotericSummary,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "RECOMMENDED NEXT PRACTICE:",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = EnochianGold
-                            )
-                            Text(
-                                text = sentimentAnalysisResult.recommendedNextWorking,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = CelestialCyan
-                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .background(EnochianGold.copy(alpha = 0.15f))
+                                    .border(1.5.dp, EnochianGold, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "${sentimentAnalysisResult.overallScore}%",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = EnochianGold
+                                    )
+                                    Text(
+                                        text = "Score",
+                                        fontSize = 9.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Emotional Dimension Meters
+                        Text(
+                            text = "EMOTIONAL DIMENSION METERS",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EnochianGold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SentimentMeter(label = "Devotion & Focus", percentage = sentimentAnalysisResult.devotionPercent, color = EnochianGold)
+                            SentimentMeter(label = "Clarity & Vision", percentage = sentimentAnalysisResult.clarityPercent, color = CelestialCyan)
+                            SentimentMeter(label = "Tranquility & Peace", percentage = sentimentAnalysisResult.tranquilityPercent, color = ElementalGreen)
+                            SentimentMeter(label = "Spiritual Intensity", percentage = sentimentAnalysisResult.intensityPercent, color = MysticViolet)
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Emotional Progress Chart Visualizer
+                        EmotionalProgressChart(
+                            journalSentiments = sentimentAnalysisResult.journalSentiments,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Gemini Summary
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MysticViolet.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                                .border(1.dp, MysticViolet, RoundedCornerShape(10.dp))
+                                .padding(12.dp)
+                        ) {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Psychology, contentDescription = null, tint = MysticViolet, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "GEMINI ESOTERIC TRAJECTORY SUMMARY",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MysticViolet
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = sentimentAnalysisResult.esotericSummary,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "RECOMMENDED NEXT PRACTICE:",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EnochianGold
+                                )
+                                Text(
+                                    text = sentimentAnalysisResult.recommendedNextWorking,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = CelestialCyan
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth().testTag("journal_search_input"),
-            placeholder = { Text("Search ritual outcomes, moods & insights...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = EnochianGold) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = EnochianGold,
-                unfocusedBorderColor = GoldOutline,
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-            ),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // M3 Mood Filter Bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = EnochianGold, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Filter by Mood:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(availableMoods) { moodOption ->
-                FilterChip(
-                    selected = selectedMoodFilter == moodOption,
-                    onClick = { selectedMoodFilter = moodOption },
-                    label = {
-                        Text(
-                            text = moodOption,
-                            fontSize = 11.sp,
-                            fontWeight = if (selectedMoodFilter == moodOption) FontWeight.Bold else FontWeight.Normal
+        item {
+            // M3 Mood Filter Bar
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = EnochianGold, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Filter by Mood:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(availableMoods) { moodOption ->
+                        FilterChip(
+                            selected = selectedMoodFilter == moodOption,
+                            onClick = { selectedMoodFilter = moodOption },
+                            label = {
+                                Text(
+                                    text = moodOption,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedMoodFilter == moodOption) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            modifier = Modifier.testTag("mood_filter_${moodOption.replace(" ", "_")}"),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = EnochianGold,
+                                selectedLabelColor = Color.Black,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = GoldOutline,
+                                selectedBorderColor = EnochianGold,
+                                enabled = true,
+                                selected = selectedMoodFilter == moodOption
+                            )
                         )
-                    },
-                    modifier = Modifier.testTag("mood_filter_${moodOption.replace(" ", "_")}"),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = EnochianGold,
-                        selectedLabelColor = Color.Black,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = GoldOutline,
-                        selectedBorderColor = EnochianGold,
-                        enabled = true,
-                        selected = selectedMoodFilter == moodOption
-                    )
-                )
+                    }
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         val filteredEntries = journalEntries.filter { entry ->
             val matchesSearch = searchQuery.isBlank() ||
@@ -528,209 +850,211 @@ fun RitualJournalScreen(
 
         // Journal List
         if (filteredEntries.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.MenuBook,
-                        contentDescription = "Empty",
-                        tint = EnochianGold.copy(alpha = 0.5f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = if (journalEntries.isEmpty()) "Your Grimoire Journal is empty" else "No matching entries found",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = if (journalEntries.isEmpty()) "Tap the '+' button to log ritual outcomes, planetary hours, and spiritual insights." else "Try adjusting your search query or mood filter.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.MenuBook,
+                            contentDescription = "Empty",
+                            tint = EnochianGold.copy(alpha = 0.5f),
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = if (journalEntries.isEmpty()) "Your Grimoire Journal is empty" else "No matching entries found",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (journalEntries.isEmpty()) "Tap the '+' button to log ritual outcomes, planetary hours, and spiritual insights." else "Try adjusting your search query or mood filter.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredEntries, key = { it.id }) { entry ->
-                    val matchedSentiment = sentimentAnalysisResult?.journalSentiments?.find { it.journalId == entry.id }
+            items(filteredEntries, key = { it.id }) { entry ->
+                val matchedSentiment = sentimentAnalysisResult?.journalSentiments?.find { it.journalId == entry.id }
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, GoldOutline, RoundedCornerShape(12.dp)),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = entry.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = EnochianGold
-                                )
-
-                                IconButton(onClick = { onDeleteJournalEntry(entry.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = ElementalRed)
-                                }
-                            }
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = entry.keyOrCallUsed,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MysticViolet,
-                                    modifier = Modifier
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                                Text(
-                                    text = "${entry.moonPhase} • ${entry.planetaryHour}",
-                                    fontSize = 11.sp,
-                                    color = EnochianGoldLight
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // M3 Chips for Mood & Timestamp
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AssistChip(
-                                    onClick = { },
-                                    label = { Text(entry.mood, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.SentimentSatisfiedAlt,
-                                            contentDescription = "Mood",
-                                            tint = EnochianGold,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        labelColor = EnochianGold
-                                    ),
-                                    border = AssistChipDefaults.assistChipBorder(borderColor = GoldOutline, enabled = true)
-                                )
-
-                                AssistChip(
-                                    onClick = { },
-                                    label = { Text(formatDateWithTime(entry.timestamp), fontSize = 10.sp) },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.Schedule,
-                                            contentDescription = "Timestamp",
-                                            tint = CelestialCyan,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    ),
-                                    border = AssistChipDefaults.assistChipBorder(borderColor = GoldOutline, enabled = true)
-                                )
-                            }
-
-                            if (matchedSentiment != null) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .background(MysticViolet.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                        .border(1.dp, MysticViolet, RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome,
-                                            contentDescription = null,
-                                            tint = MysticViolet,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "Gemini Sentiment: ${matchedSentiment.sentimentTag} (${matchedSentiment.sentimentScore}%) • ${matchedSentiment.emotionalTone}",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MysticViolet
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, GoldOutline, RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "Intention: ${entry.intention}",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = entry.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = EnochianGold
                             )
 
+                            IconButton(onClick = { onDeleteJournalEntry(entry.id) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = ElementalRed)
+                            }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = entry.keyOrCallUsed,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MysticViolet,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                            Text(
+                                text = "${entry.moonPhase} • ${entry.planetaryHour}",
+                                fontSize = 11.sp,
+                                color = EnochianGoldLight
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // M3 Chips for Mood & Timestamp
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AssistChip(
+                                onClick = { },
+                                label = { Text(entry.mood, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.SentimentSatisfiedAlt,
+                                        contentDescription = "Mood",
+                                        tint = EnochianGold,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = EnochianGold
+                                ),
+                                border = AssistChipDefaults.assistChipBorder(borderColor = GoldOutline, enabled = true)
+                            )
+
+                            AssistChip(
+                                onClick = { },
+                                label = { Text(formatDateWithTime(entry.timestamp), fontSize = 10.sp) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Schedule,
+                                        contentDescription = "Timestamp",
+                                        tint = CelestialCyan,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                border = AssistChipDefaults.assistChipBorder(borderColor = GoldOutline, enabled = true)
+                            )
+                        }
+
+                        if (matchedSentiment != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(MysticViolet.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .border(1.dp, MysticViolet, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MysticViolet,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Gemini Sentiment: ${matchedSentiment.sentimentTag} (${matchedSentiment.sentimentScore}%) • ${matchedSentiment.emotionalTone}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MysticViolet
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Intention: ${entry.intention}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Outcome: ${entry.outcomeNotes}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (entry.insights.isNotBlank()) {
                             Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Insights: ${entry.insights}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = CelestialCyan
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row {
+                                for (i in 1..5) {
+                                    Icon(
+                                        imageVector = if (i <= entry.rating) Icons.Default.Star else Icons.Default.StarOutline,
+                                        contentDescription = "Rating",
+                                        tint = EnochianGold,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
 
                             Text(
-                                text = "Outcome: ${entry.outcomeNotes}",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = formatDateShort(entry.timestamp),
+                                fontSize = 10.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
-                            if (entry.insights.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Insights: ${entry.insights}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = CelestialCyan
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row {
-                                    for (i in 1..5) {
-                                        Icon(
-                                            imageVector = if (i <= entry.rating) Icons.Default.Star else Icons.Default.StarOutline,
-                                            contentDescription = "Rating",
-                                            tint = EnochianGold,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = formatDateShort(entry.timestamp),
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
                         }
                     }
                 }
             }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -824,11 +1148,21 @@ fun RitualJournalScreen(
                     }
 
                     item {
+                        val insightsWordCount = if (insights.isBlank()) 0 else insights.trim().split(Regex("\\s+")).size
                         OutlinedTextField(
                             value = insights,
                             onValueChange = { insights = it },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().testTag("journal_insights_input"),
                             label = { Text("Spiritual Insights & Visions") },
+                            supportingText = {
+                                Text(
+                                    text = "$insightsWordCount ${if (insightsWordCount == 1) "word" else "words"}",
+                                    fontSize = 11.sp,
+                                    color = EnochianGold,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.End
+                                )
+                            },
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = EnochianGold, unfocusedBorderColor = GoldOutline)
                         )
                     }
@@ -950,7 +1284,7 @@ fun formatDateShort(millis: Long): String {
 }
 
 fun formatDateWithTime(millis: Long): String {
-    val sdf = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault())
+    val sdf = SimpleDateFormat("yyyy-MM-dd, HH:mm:ss", Locale.getDefault())
     return sdf.format(Date(millis))
 }
 

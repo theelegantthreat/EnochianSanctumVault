@@ -11,7 +11,15 @@ data class DetailedLunarPhase(
     val moonAgeDays: Double,
     val zodiacSign: String,
     val ritualSuitability: String,
-    val recommendedEnochianWorking: String
+    val recommendedEnochianWorking: String,
+    val isFromApi: Boolean = false,
+    val apiSourceName: String = "Astronomical Ephemeris (Offline Engine)",
+    val traditionalMoonName: String? = EsotericUtils.getSeasonalMoonName(),
+    val distanceKm: Double? = 384400.0,
+    val angularDiameterDegrees: Double? = 0.52,
+    val distanceToSunKm: Double? = 149600000.0,
+    val sunAngularDiameterDegrees: Double? = 0.53,
+    val lastFetchedTimestampMillis: Long = System.currentTimeMillis()
 )
 
 data class UpcomingLunarMilestone(
@@ -212,6 +220,24 @@ object EsotericUtils {
                 isCurrentHour = (hour == currentHour),
                 isDayHour = (hour in 6..17)
             )
+        }
+    }
+
+    fun getSeasonalMoonName(): String {
+        val month = Calendar.getInstance().get(Calendar.MONTH)
+        return when (month) {
+            Calendar.JANUARY -> "Wolf Moon"
+            Calendar.FEBRUARY -> "Snow Moon"
+            Calendar.MARCH -> "Worm Moon"
+            Calendar.APRIL -> "Pink Moon"
+            Calendar.MAY -> "Flower Moon"
+            Calendar.JUNE -> "Strawberry Moon"
+            Calendar.JULY -> "Buck Moon"
+            Calendar.AUGUST -> "Sturgeon Moon"
+            Calendar.SEPTEMBER -> "Harvest Moon"
+            Calendar.OCTOBER -> "Hunter's Moon"
+            Calendar.NOVEMBER -> "Beaver Moon"
+            else -> "Cold Moon"
         }
     }
 }

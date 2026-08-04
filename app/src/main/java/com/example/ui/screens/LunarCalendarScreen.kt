@@ -48,6 +48,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SatelliteAlt
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.CelestialCyan
 import com.example.ui.theme.ElementalGreen
 import com.example.ui.theme.EnochianBorder
@@ -56,20 +60,27 @@ import com.example.ui.theme.EnochianGoldLight
 import com.example.ui.theme.EnochianHeroContainer
 import com.example.ui.theme.GoldOutline
 import com.example.ui.theme.MysticViolet
+import com.example.ui.viewmodel.EnochianViewModel
 import com.example.utils.DetailedLunarPhase
 import com.example.utils.EsotericUtils
 import com.example.utils.UpcomingLunarMilestone
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun LunarCalendarScreen(
     onNavigateToTracker: () -> Unit,
     onNavigateToSigils: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: EnochianViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    val lunarPhase: DetailedLunarPhase = EsotericUtils.getDetailedLunarPhase()
-    val upcomingMilestones: List<UpcomingLunarMilestone> = EsotericUtils.getUpcomingMilestones()
-    val planetaryHour: String = EsotericUtils.getCurrentPlanetaryHour()
-    val planetaryHours24: List<PlanetaryHourInfo> = EsotericUtils.get24PlanetaryHoursOfDay()
+    val lunarPhase by viewModel.lunarPhaseState.collectAsStateWithLifecycle()
+    val isFetchingApi by viewModel.isFetchingLunarApi.collectAsStateWithLifecycle()
+
+    val upcomingMilestones: List<UpcomingLunarMilestone> = remember { EsotericUtils.getUpcomingMilestones() }
+    val planetaryHour: String = remember { EsotericUtils.getCurrentPlanetaryHour() }
+    val planetaryHours24: List<PlanetaryHourInfo> = remember { EsotericUtils.get24PlanetaryHoursOfDay() }
 
     var is24HoursExpanded by remember { mutableStateOf(false) }
 
@@ -91,7 +102,79 @@ fun LunarCalendarScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ASTRONOMICAL API STATUS & TELEMETRY BAR
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (lunarPhase.isFromApi) ElementalGreen.copy(alpha = 0.2f)
+                        else EnochianGold.copy(alpha = 0.15f)
+                    )
+                    .border(
+                        1.dp,
+                        if (lunarPhase.isFromApi) ElementalGreen else EnochianGold,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = if (lunarPhase.isFromApi) Icons.Default.SatelliteAlt else Icons.Default.Brightness3,
+                    contentDescription = null,
+                    tint = if (lunarPhase.isFromApi) ElementalGreen else EnochianGold,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (lunarPhase.isFromApi) "LIVE ASTRONOMICAL API" else "ASTRONOMICAL EPHEMERIS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (lunarPhase.isFromApi) ElementalGreen else EnochianGold
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (lunarPhase.isFromApi) "Farmsense v1" else "Offline Engine",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = { viewModel.refreshAstronomicalLunarData() },
+                    enabled = !isFetchingApi,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("refresh_lunar_api_button")
+                ) {
+                    if (isFetchingApi) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = EnochianGold,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Astronomical API",
+                            tint = EnochianGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -192,6 +275,102 @@ fun LunarCalendarScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = CelestialCyan
                         )
+
+                        lunarPhase.traditionalMoonName?.let { tradName ->
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Traditional Moon: \"$tradName\"",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = EnochianGold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ASTRONOMICAL ORBITAL TELEMETRY CARD
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, GoldOutline, RoundedCornerShape(16.dp))
+                        .testTag("astronomical_telemetry_card"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.SatelliteAlt,
+                                contentDescription = "Astronomical Telemetry",
+                                tint = CelestialCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Astronomical Orbital Telemetry",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = CelestialCyan
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = if (lunarPhase.isFromApi) "API Live" else "Offline Engine",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (lunarPhase.isFromApi) ElementalGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            TelemetryDataCell(
+                                label = "LUNAR DISTANCE",
+                                value = "${String.format("%,.0f", lunarPhase.distanceKm ?: 384400.0)} km",
+                                subValue = "Earth Radii: ~${String.format("%.1f", (lunarPhase.distanceKm ?: 384400.0) / 6371.0)}",
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TelemetryDataCell(
+                                label = "LUNAR DIAMETER",
+                                value = "${String.format("%.3f", lunarPhase.angularDiameterDegrees ?: 0.520)}°",
+                                subValue = "${String.format("%.1f", (lunarPhase.angularDiameterDegrees ?: 0.52) * 60)} arcmin",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            TelemetryDataCell(
+                                label = "SOLAR DISTANCE",
+                                value = "${String.format("%.1f", (lunarPhase.distanceToSunKm ?: 149600000.0) / 1000000.0)}M km",
+                                subValue = "1.00 AU average",
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TelemetryDataCell(
+                                label = "DATA SOURCE",
+                                value = if (lunarPhase.isFromApi) "Farmsense API" else "Ephemeris Engine",
+                                subValue = remember(lunarPhase.lastFetchedTimestampMillis) {
+                                    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                                    "Updated ${sdf.format(Date(lunarPhase.lastFetchedTimestampMillis))}"
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
@@ -463,3 +642,41 @@ fun LunarCalendarScreen(
         }
     }
 }
+
+@Composable
+private fun TelemetryDataCell(
+    label: String,
+    value: String,
+    subValue: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+            .border(1.dp, GoldOutline, RoundedCornerShape(10.dp))
+            .padding(10.dp)
+    ) {
+        Column {
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = EnochianGold
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subValue,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+

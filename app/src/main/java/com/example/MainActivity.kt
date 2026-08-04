@@ -4,20 +4,30 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NightlightRound
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,13 +49,25 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.screens.DatabaseScreen
 import com.example.ui.screens.InvocationTrackerScreen
+import com.example.ui.screens.JournalCalendarScreen
 import com.example.ui.screens.LunarCalendarScreen
 import com.example.ui.screens.RitualJournalScreen
 import com.example.ui.screens.SigilGeneratorScreen
+import com.example.ui.screens.BackupScreen
+import com.example.ui.screens.exportBackupDataToJson
+import com.example.ui.components.NoteHeaderBar
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.example.ui.screens.parseAndImportBackupJson
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.ui.theme.EnochianGold
 import com.example.ui.theme.EnochianMagicTheme
 import com.example.ui.theme.GoldOutline
-import com.example.ui.theme.MysticViolet
 import com.example.ui.viewmodel.EnochianViewModel
 
 enum class NavigationScreen(
@@ -58,7 +80,9 @@ enum class NavigationScreen(
     SIGIL("sigil", "Sigil Gen", Icons.Default.AutoAwesome, "nav_sigils"),
     LUNAR("lunar", "Lunar Phase", Icons.Default.NightlightRound, "nav_lunar"),
     TRACKER("tracker", "Invocations", Icons.Default.Timer, "nav_tracker"),
-    JOURNAL("journal", "Journal", Icons.Default.NoteAdd, "nav_journal")
+    JOURNAL("journal", "Journal", Icons.Default.NoteAdd, "nav_journal"),
+    CALENDAR("calendar", "Calendar", Icons.Default.CalendarMonth, "nav_calendar"),
+    BACKUP("backup", "Backup", Icons.Default.CloudSync, "nav_backup")
 }
 
 class MainActivity : ComponentActivity() {
@@ -105,53 +129,155 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
     val characterMasteries by viewModel.characterMasteries.collectAsStateWithLifecycle()
 
     var activeSigilIntention by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    val currentDateStr = remember {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    }
+    val defaultFilename = "backup-EnochianGrimoire-$currentDateStr.JSON"
+
+    val exportedJsonText = remember(journalEntries, invocations, savedSigils) {
+        exportBackupDataToJson(journalEntries, invocations, savedSigils)
+    }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(exportedJsonText.toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, "Backup exported to Downloads successfully!", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to save backup: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val jsonString = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                }
+                if (!jsonString.isNullOrBlank()) {
+                    val result = parseAndImportBackupJson(
+                        jsonText = jsonString,
+                        onSaveJournalEntry = { title, call, planet, moon, intent, outcome, insights, rating, mood ->
+                            viewModel.saveJournalEntry(title, call, planet, moon, intent, outcome, insights, rating, mood)
+                        },
+                        onSaveInvocation = { callTitle, watchtower, notes ->
+                            viewModel.saveInvocationRecord(callTitle, watchtower, notes)
+                        },
+                        onSaveSigil = { title, phrase, letters, method, json, color ->
+                            viewModel.saveSigil(title, phrase, letters, method, json, color)
+                        }
+                    )
+                    Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Backup file is empty", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to import backup: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val launchExportJson = {
+        try {
+            createDocumentLauncher.launch(defaultFilename)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Unable to open file saver: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val launchImportJson = {
+        try {
+            openDocumentLauncher.launch(arrayOf("application/json"))
+        } catch (e: Exception) {
+            Toast.makeText(context, "Unable to open file picker: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Scaffold(
-
         modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = EnochianGold,
-                tonalElevation = 8.dp
-            ) {
-                NavigationScreen.entries.forEach { screen ->
-                    val isSelected = currentRoute == screen.route
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = {
-                            if (currentRoute != screen.route) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+        topBar = {
+            NoteHeaderBar(
+                title = "Enochian Grimoire",
+                onExportJson = { launchExportJson() },
+                onImportJson = { launchImportJson() },
+                onNavigateToScreen = { route ->
+                    if (currentRoute != route) {
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
                             }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = screen.icon,
-                                contentDescription = screen.title
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = screen.title,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = EnochianGold,
-                            selectedTextColor = EnochianGold,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            indicatorColor = GoldOutline.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.testTag(screen.testTag)
-                    )
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = EnochianGold,
+                tonalElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 2.dp)
+                ) {
+                    NavigationScreen.entries.forEach { screen ->
+                        val isSelected = currentRoute == screen.route
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = {
+                                if (currentRoute != screen.route) {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = screen.icon,
+                                    contentDescription = screen.title
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = screen.title,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 11.sp,
+                                    maxLines = 1
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = EnochianGold,
+                                selectedTextColor = EnochianGold,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = GoldOutline.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .width(78.dp)
+                                .testTag(screen.testTag)
+                        )
+                    }
                 }
             }
         }
@@ -218,7 +344,8 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    viewModel = viewModel
                 )
             }
 
@@ -270,6 +397,41 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                     }
                 )
             }
+
+            composable(NavigationScreen.CALENDAR.route) {
+                JournalCalendarScreen(
+                    journalEntries = journalEntries,
+                    onSaveJournalEntry = { title, call, planet, moon, intent, outcome, insights, rating, mood ->
+                        viewModel.saveJournalEntry(title, call, planet, moon, intent, outcome, insights, rating, mood)
+                    },
+                    onDeleteJournalEntry = { id ->
+                        viewModel.deleteJournalEntry(id)
+                    }
+                )
+            }
+
+            composable(NavigationScreen.BACKUP.route) {
+                BackupScreen(
+                    journalEntries = journalEntries,
+                    invocations = invocations,
+                    savedSigils = savedSigils,
+                    isSyncingCloud = isSyncingCloud,
+                    lastCloudSyncTime = lastCloudSyncTime,
+                    onTriggerCloudSync = { viewModel.triggerCloudSync() },
+                    onSaveJournalEntry = { title, call, planet, moon, intent, outcome, insights, rating, mood ->
+                        viewModel.saveJournalEntry(title, call, planet, moon, intent, outcome, insights, rating, mood)
+                    },
+                    onSaveInvocation = { callTitle, watchtower, notes ->
+                        viewModel.saveInvocationRecord(callTitle, watchtower, notes)
+                    },
+                    onSaveSigil = { title, phrase, letters, method, json, color ->
+                        viewModel.saveSigil(title, phrase, letters, method, json, color)
+                    },
+                    onExportJsonFile = { launchExportJson() },
+                    onImportJsonFile = { launchImportJson() }
+                )
+            }
         }
     }
 }
+

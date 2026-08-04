@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -35,10 +36,12 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -48,6 +51,8 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.ui.platform.LocalContext
+import com.example.utils.SigilExportUtils
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -524,6 +529,8 @@ fun SigilGlossaryList(
     sigils: List<EnochianSigilEntry>,
     onTraceSigil: ((String) -> Unit)?
 ) {
+    val context = LocalContext.current
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -597,22 +604,54 @@ fun SigilGlossaryList(
                         CorrespondenceTag("Gem: ${sigil.gemstone}", EnochianGoldLight)
                     }
 
-                    if (onTraceSigil != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (onTraceSigil != null) {
+                            Button(
+                                onClick = { onTraceSigil(sigil.intentionPhrase) },
+                                modifier = Modifier.weight(1f).testTag("trace_sigil_button_${sigil.id}"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = EnochianGold
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, GoldOutline),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = "Trace")
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Trace Sigil", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
 
                         Button(
-                            onClick = { onTraceSigil(sigil.intentionPhrase) },
-                            modifier = Modifier.fillMaxWidth().testTag("trace_sigil_button_${sigil.id}"),
+                            onClick = {
+                                val uri = SigilExportUtils.exportSigilToMediaStore(
+                                    context = context,
+                                    title = sigil.name,
+                                    intentionPhrase = sigil.intentionPhrase,
+                                    sigilMethod = "Enochian Watchtower Sigil",
+                                    lineColorHex = sigil.wheelColorHex
+                                )
+                                if (uri != null) {
+                                    Toast.makeText(context, "Exported ${sigil.name} PNG to Pictures/EnochianSigils!", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Saved sigil PNG image to gallery.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).testTag("export_glossary_sigil_${sigil.id}"),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = EnochianGold
+                                containerColor = EnochianGold,
+                                contentColor = Color.Black
                             ),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, GoldOutline),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = "Trace")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Trace in Sigil Rose Generator", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Icon(Icons.Default.Download, contentDescription = "Export PNG")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Export PNG", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 }

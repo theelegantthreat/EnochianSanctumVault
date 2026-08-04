@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -27,6 +31,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -62,6 +68,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -76,8 +83,16 @@ import com.example.ui.theme.ElementalRed
 import com.example.ui.theme.EnochianGold
 import com.example.ui.theme.GoldOutline
 import com.example.ui.theme.MysticViolet
+import com.example.utils.SigilExportUtils
 import kotlin.math.cos
 import kotlin.math.sin
+
+data class ExportSigilData(
+    val title: String,
+    val phrase: String,
+    val method: String,
+    val colorHex: String
+)
 
 @Composable
 fun SigilGeneratorScreen(
@@ -87,6 +102,7 @@ fun SigilGeneratorScreen(
     initialIntention: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(0) } // 0 = Generator, 1 = Saved Library
 
     var intentionText by remember { mutableStateOf(initialIntention?.ifEmpty { "PROTECTION OF BATAIVAH" } ?: "PROTECTION OF BATAIVAH") }
@@ -105,6 +121,29 @@ fun SigilGeneratorScreen(
     )
 
     val activeColorPair = colorPalette[selectedColorIndex]
+
+    // Create Document Launcher for custom location save
+    var pendingExportParams by remember { mutableStateOf<ExportSigilData?>(null) }
+    val customPngLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("image/png")
+    ) { uri: Uri? ->
+        if (uri != null && pendingExportParams != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { os ->
+                    val data = pendingExportParams!!
+                    val bitmap = SigilExportUtils.createSigilBitmap(data.title, data.phrase, data.method, data.colorHex)
+                    val success = SigilExportUtils.writeSigilBitmapToStream(bitmap, os)
+                    if (success) {
+                        Toast.makeText(context, "Sigil PNG exported successfully for ritual printing!", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Failed to export Sigil PNG image.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Export error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -253,24 +292,63 @@ fun SigilGeneratorScreen(
                 }
 
                 item {
-                    Button(
-                        onClick = {
-                            sigilTitleInput = "Sigil of ${intentionText.take(16)}"
-                            isShowSaveDialog = true
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("save_sigil_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = EnochianGold,
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = "Save Sigil")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Sigil to Grimoire", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Button(
+                            onClick = {
+                                sigilTitleInput = "Sigil of ${intentionText.take(16)}"
+                                isShowSaveDialog = true
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("save_sigil_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = EnochianGold,
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = "Save Sigil")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Save Sigil", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                val title = "Sigil of ${intentionText.take(16)}"
+                                val exportedUri = SigilExportUtils.exportSigilToMediaStore(
+                                    context = context,
+                                    title = title,
+                                    intentionPhrase = intentionText,
+                                    sigilMethod = "Enochian Rose Wheel",
+                                    lineColorHex = activeColorPair.second
+                                )
+                                if (exportedUri != null) {
+                                    Toast.makeText(context, "Exported Sigil PNG to Pictures/EnochianSigils!", Toast.LENGTH_LONG).show()
+                                } else {
+                                    val defaultFileName = "sigil_${intentionText.take(8).lowercase()}.png"
+                                    pendingExportParams = ExportSigilData(title, intentionText, "Enochian Rose Wheel", activeColorPair.second)
+                                    customPngLauncher.launch(defaultFileName)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("export_sigil_png_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = EnochianGold
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GoldOutline)
+                        ) {
+                            Icon(Icons.Default.Image, contentDescription = "Export PNG", tint = EnochianGold)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export PNG", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
                 }
             }
@@ -358,14 +436,42 @@ fun SigilGeneratorScreen(
                                     )
                                 }
 
-                                IconButton(
-                                    onClick = { onDeleteSigil(sigil.id) }
-                                ) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = ElementalRed
-                                    )
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    IconButton(
+                                        onClick = {
+                                            val exportedUri = SigilExportUtils.exportSigilToMediaStore(
+                                                context = context,
+                                                title = sigil.title,
+                                                intentionPhrase = sigil.originalPhrase,
+                                                sigilMethod = sigil.sigilMethod,
+                                                lineColorHex = sigil.colorHex
+                                            )
+                                            if (exportedUri != null) {
+                                                Toast.makeText(context, "Exported Sigil PNG to Pictures/EnochianSigils!", Toast.LENGTH_LONG).show()
+                                            } else {
+                                                val defaultFileName = "sigil_${sigil.title.take(8).lowercase().replace(" ", "_")}.png"
+                                                pendingExportParams = ExportSigilData(sigil.title, sigil.originalPhrase, sigil.sigilMethod, sigil.colorHex)
+                                                customPngLauncher.launch(defaultFileName)
+                                            }
+                                        },
+                                        modifier = Modifier.testTag("export_saved_sigil_${sigil.id}")
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Download,
+                                            contentDescription = "Export PNG",
+                                            tint = EnochianGold
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { onDeleteSigil(sigil.id) }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = ElementalRed
+                                        )
+                                    }
                                 }
                             }
                         }

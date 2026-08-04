@@ -21,12 +21,22 @@ import kotlinx.coroutines.launch
 
 import com.example.data.GeminiSentimentRepository
 import com.example.data.model.RitualSentimentAnalysisResult
+import com.example.data.api.AstronomicalLunarRepository
+import com.example.utils.DetailedLunarPhase
+import com.example.utils.EsotericUtils
 
 class EnochianViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: EnochianRepository
     private val geminiRepository = GeminiSentimentRepository()
     private val toneGenerator = ToneGenerator()
+
+    // Astronomical Lunar API State
+    private val _lunarPhaseState = MutableStateFlow(EsotericUtils.getDetailedLunarPhase())
+    val lunarPhaseState: StateFlow<DetailedLunarPhase> = _lunarPhaseState.asStateFlow()
+
+    private val _isFetchingLunarApi = MutableStateFlow(false)
+    val isFetchingLunarApi: StateFlow<Boolean> = _isFetchingLunarApi.asStateFlow()
 
     init {
         val database = EnochianDatabase.getDatabase(application)
@@ -40,6 +50,16 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repository.initializeDefaultKeysIfNeeded()
             repository.initializeCharacterMasteriesIfNeeded()
+        }
+        refreshAstronomicalLunarData()
+    }
+
+    fun refreshAstronomicalLunarData() {
+        viewModelScope.launch {
+            _isFetchingLunarApi.value = true
+            val phase = AstronomicalLunarRepository.fetchCurrentLunarPhase()
+            _lunarPhaseState.value = phase
+            _isFetchingLunarApi.value = false
         }
     }
 
