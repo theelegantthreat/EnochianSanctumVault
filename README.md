@@ -1,3 +1,7 @@
+# Enochian Magic Android Grimoire
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 Summary of README.md Content
 
 ● Project Title & Badges: Enochian Magic Android Grimoire, built with Kotlin, Jetpack Compose, and Room Database.
@@ -17,3 +21,11 @@ Summary of README.md Content
 ○ GitHub Sync & Local Backup: Private GitHub repository synchronization with offline ConnectivityManager pre-checks and JSON import/export.
 
 ● Architecture & Build Instructions: Detailed breakdown of MVVM setup, tech stack, prerequisites, permissions, and Gradle commands.
+
+---
+
+License
+
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the LICENSE file for full terms.
+
+SPDX-License-Identifier: GPL-3.0-or-later
