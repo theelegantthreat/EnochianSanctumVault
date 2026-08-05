@@ -15,15 +15,15 @@ import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
 data class FarmsenseMoonPhaseResponse(
-    @Json(name = "Age") val age: Double?,
-    @Json(name = "Phase") val phase: String?,
-    @Json(name = "Illumination") val illumination: Double?,
-    @Json(name = "Moon") val moon: List<String>?,
-    @Json(name = "Distance") val distance: Double?,
-    @Json(name = "AngularDiameter") val angularDiameter: Double?,
-    @Json(name = "DistanceToSun") val distanceToSun: Double?,
-    @Json(name = "SunAngularDiameter") val sunAngularDiameter: Double?,
-    @Json(name = "TargetDate") val targetDate: Long?
+    @field:Json(name = "Age") val age: Double?,
+    @field:Json(name = "Phase") val phase: String?,
+    @field:Json(name = "Illumination") val illumination: Double?,
+    @field:Json(name = "Moon") val moon: List<String>?,
+    @field:Json(name = "Distance") val distance: Double?,
+    @field:Json(name = "AngularDiameter") val angularDiameter: Double?,
+    @field:Json(name = "DistanceToSun") val distanceToSun: Double?,
+    @field:Json(name = "SunAngularDiameter") val sunAngularDiameter: Double?,
+    @field:Json(name = "TargetDate") val targetDate: Long?
 )
 
 interface FarmsenseLunarService {

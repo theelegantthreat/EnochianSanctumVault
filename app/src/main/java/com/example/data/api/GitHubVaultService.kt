@@ -18,23 +18,23 @@ import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
 data class GitHubFileResponse(
-    @Json(name = "name") val name: String?,
-    @Json(name = "path") val path: String?,
-    @Json(name = "sha") val sha: String?,
-    @Json(name = "content") val content: String?,
-    @Json(name = "encoding") val encoding: String?
+    @field:Json(name = "name") val name: String?,
+    @field:Json(name = "path") val path: String?,
+    @field:Json(name = "sha") val sha: String?,
+    @field:Json(name = "content") val content: String?,
+    @field:Json(name = "encoding") val encoding: String?
 )
 
 @JsonClass(generateAdapter = true)
 data class GitHubPutRequest(
-    @Json(name = "message") val message: String,
-    @Json(name = "content") val content: String,
-    @Json(name = "sha") val sha: String? = null
+    @field:Json(name = "message") val message: String,
+    @field:Json(name = "content") val content: String,
+    @field:Json(name = "sha") val sha: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class GitHubPutResponse(
-    @Json(name = "content") val content: GitHubFileResponse?
+    @field:Json(name = "content") val content: GitHubFileResponse?
 )
 
 interface GitHubVaultApi {
