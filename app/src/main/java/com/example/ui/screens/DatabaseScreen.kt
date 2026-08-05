@@ -31,8 +31,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -53,7 +54,6 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.platform.LocalContext
 import com.example.utils.SigilExportUtils
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -126,7 +126,7 @@ fun DatabaseScreen(
     var selectedCategoryIndex by remember { mutableStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val categories = listOf("19 Keys / Calls", "Alphabet Flashcards 🎴", "Enochian Alphabet", "Sigil Glossary", "Planets & Spheres", "Watchtowers", "30 Aethyrs")
+    val categories = listOf("19 Keys / Calls", "30 Aethyrs", "Alphabet Flashcards 🎴", "Enochian Alphabet", "Planets & Spheres", "Sigil Glossary", "Watchtowers")
 
     Column(
         modifier = modifier
@@ -212,30 +212,26 @@ fun DatabaseScreen(
                 audioPlayer = audioPlayer,
                 onVibrateCall = onVibrateCall
             )
-            1 -> EnochianFlashcardsModule(
+            1 -> AethyrsList(
+                aethyrs = EnochianData.AETHYRS.filter {
+                    it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.meaning.contains(searchQuery, ignoreCase = true) ||
+                    it.description.contains(searchQuery, ignoreCase = true)
+                }
+            )
+            2 -> EnochianFlashcardsModule(
                 masteries = characterMasteries,
                 onRecordReview = onRecordFlashcardReview,
                 onResetProgress = onResetFlashcardProgress
             )
-            2 -> AlphabetList(
+            3 -> AlphabetList(
                 letters = EnochianData.ENNOCHIAN_LETTERS.filter {
                     it.name.contains(searchQuery, ignoreCase = true) ||
                     it.englishChar.toString().contains(searchQuery, ignoreCase = true) ||
                     it.elementalAttribute.contains(searchQuery, ignoreCase = true)
                 },
                 characterMasteries = characterMasteries,
-                onLaunchFlashcards = { selectedCategoryIndex = 1 }
-            )
-            3 -> SigilGlossaryList(
-                sigils = EnochianData.SIGIL_GLOSSARY.filter {
-                    it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.traditionalMeaning.contains(searchQuery, ignoreCase = true) ||
-                    it.purpose.contains(searchQuery, ignoreCase = true) ||
-                    it.planet.contains(searchQuery, ignoreCase = true) ||
-                    it.element.contains(searchQuery, ignoreCase = true) ||
-                    it.angelicRuler.contains(searchQuery, ignoreCase = true)
-                },
-                onTraceSigil = onTraceSigilInGenerator
+                onLaunchFlashcards = { selectedCategoryIndex = 2 }
             )
             4 -> PlanetaryCorrespondencesList(
                 planets = EnochianData.PLANETARY_CORRESPONDENCES.filter {
@@ -249,18 +245,22 @@ fun DatabaseScreen(
                 },
                 onTraceSigil = onTraceSigilInGenerator
             )
-            5 -> WatchtowersList(
+            5 -> SigilGlossaryList(
+                sigils = EnochianData.SIGIL_GLOSSARY.filter {
+                    it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.traditionalMeaning.contains(searchQuery, ignoreCase = true) ||
+                    it.purpose.contains(searchQuery, ignoreCase = true) ||
+                    it.planet.contains(searchQuery, ignoreCase = true) ||
+                    it.element.contains(searchQuery, ignoreCase = true) ||
+                    it.angelicRuler.contains(searchQuery, ignoreCase = true)
+                },
+                onTraceSigil = onTraceSigilInGenerator
+            )
+            6 -> WatchtowersList(
                 watchtowers = EnochianData.WATCHTOWERS.filter {
                     it.name.contains(searchQuery, ignoreCase = true) ||
                     it.greatKing.contains(searchQuery, ignoreCase = true) ||
                     it.element.contains(searchQuery, ignoreCase = true)
-                }
-            )
-            6 -> AethyrsList(
-                aethyrs = EnochianData.AETHYRS.filter {
-                    it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.meaning.contains(searchQuery, ignoreCase = true) ||
-                    it.description.contains(searchQuery, ignoreCase = true)
                 }
             )
         }
@@ -509,7 +509,7 @@ fun CallsList(
                                             colors = ButtonDefaults.buttonColors(containerColor = CelestialCyan, contentColor = Color.Black),
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            Icon(Icons.Default.VolumeUp, contentDescription = "Tone", modifier = Modifier.size(18.dp))
+                                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Tone", modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("${call.frequencyHz.toInt()}Hz Tone", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
@@ -972,7 +972,7 @@ fun AlphabetList(
                             Text("Test yourself on Enochian glyphs & English letter correspondences", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Icon(Icons.Default.ArrowForward, contentDescription = "Start", tint = EnochianGold)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Start", tint = EnochianGold)
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
@@ -1419,7 +1419,7 @@ fun EnochianFlashcardsModule(
                                 .border(1.dp, GoldOutline, CircleShape)
                                 .testTag("flashcard_prev")
                         ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Previous Card", tint = EnochianGold)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Card", tint = EnochianGold)
                         }
 
                         // Rating Action Buttons
@@ -1468,7 +1468,7 @@ fun EnochianFlashcardsModule(
                                 .border(1.dp, GoldOutline, CircleShape)
                                 .testTag("flashcard_next")
                         ) {
-                            Icon(Icons.Default.ArrowForward, contentDescription = "Next Card", tint = EnochianGold)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Card", tint = EnochianGold)
                         }
                     }
                 }

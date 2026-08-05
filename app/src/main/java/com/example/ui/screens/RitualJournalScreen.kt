@@ -25,13 +25,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -859,7 +860,7 @@ fun RitualJournalScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            Icons.Default.MenuBook,
+                            Icons.AutoMirrored.Filled.MenuBook,
                             contentDescription = "Empty",
                             tint = EnochianGold.copy(alpha = 0.5f),
                             modifier = Modifier.size(64.dp)
@@ -1336,7 +1337,7 @@ fun EmotionalProgressChart(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.ShowChart,
+                    imageVector = Icons.AutoMirrored.Filled.ShowChart,
                     contentDescription = null,
                     tint = EnochianGold,
                     modifier = Modifier.size(16.dp)

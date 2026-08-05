@@ -5,14 +5,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NightlightRound
-import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.DropdownMenu
@@ -48,11 +48,11 @@ private data class MenuNavigationItem(
 private val menuNavItems = listOf(
     MenuNavigationItem("Enochian Grimoire Backup & Sync", "backup", Icons.Default.CloudSync, "menu_nav_backup"),
     MenuNavigationItem("Enochian Lunar Ritual Calendar", "lunar", Icons.Default.NightlightRound, "menu_nav_lunar"),
-    MenuNavigationItem("Enochian Sanctum Vault", "database", Icons.Default.MenuBook, "menu_nav_database"),
+    MenuNavigationItem("Enochian Sanctum Vault", "database", Icons.AutoMirrored.Filled.MenuBook, "menu_nav_database"),
     MenuNavigationItem("Enochian Sigil Generator", "sigil", Icons.Default.AutoAwesome, "menu_nav_sigil"),
     MenuNavigationItem("Invocation Progress Tracker", "tracker", Icons.Default.Timer, "menu_nav_tracker"),
     MenuNavigationItem("Journal Calendar", "calendar", Icons.Default.CalendarMonth, "menu_nav_calendar"),
-    MenuNavigationItem("Ritual Outcome Journal", "journal", Icons.Default.NoteAdd, "menu_nav_journal")
+    MenuNavigationItem("Ritual Outcome Journal", "journal", Icons.AutoMirrored.Filled.NoteAdd, "menu_nav_journal")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
