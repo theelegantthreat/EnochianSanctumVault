@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
@@ -508,56 +507,26 @@ fun RitualJournalScreen(
                         }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        // Quick Save to Downloads
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable {
-                                    if (journalEntries.isEmpty()) {
-                                        Toast.makeText(context, "No ritual journal entries to export.", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        val exportedFile = PdfExportUtils.exportToDownloads(context, journalEntries)
-                                        if (exportedFile != null) {
-                                            Toast.makeText(context, "PDF saved to Downloads/${exportedFile.name}", Toast.LENGTH_LONG).show()
-                                        } else {
-                                            val defaultFileName = "ritual_journal_${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.pdf"
-                                            pdfExportLauncher.launch(defaultFileName)
-                                        }
-                                    }
+                    // Export via Document Picker
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(EnochianGold)
+                            .clickable {
+                                if (journalEntries.isEmpty()) {
+                                    Toast.makeText(context, "No ritual journal entries to export.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val defaultFileName = "ritual_journal_${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.pdf"
+                                    pdfExportLauncher.launch(defaultFileName)
                                 }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                                .testTag("quick_pdf_download_button")
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Download, contentDescription = "Quick Save", tint = EnochianGold, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Downloads", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
                             }
-                        }
-
-                        // Export via Document Picker
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(EnochianGold)
-                                .clickable {
-                                    if (journalEntries.isEmpty()) {
-                                        Toast.makeText(context, "No ritual journal entries to export.", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        val defaultFileName = "ritual_journal_${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.pdf"
-                                        pdfExportLauncher.launch(defaultFileName)
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                                .testTag("export_pdf_button")
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = Color.Black, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Export PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .testTag("export_pdf_button")
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = Color.Black, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Export PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                         }
                     }
                 }

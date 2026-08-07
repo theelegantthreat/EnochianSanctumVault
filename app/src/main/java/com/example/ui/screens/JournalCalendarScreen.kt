@@ -46,8 +46,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.filled.Today
-import androidx.compose.material.icons.filled.PictureAsPdf
-import com.example.utils.PdfExportUtils
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -132,26 +130,6 @@ fun JournalCalendarScreen(
     // Dialog state for adding a new entry on the selected date
     var showAddEntryDialog by remember { mutableStateOf(false) }
 
-    // PDF File Save Launcher
-    val pdfExportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/pdf")
-    ) { uri ->
-        uri?.let { targetUri ->
-            try {
-                context.contentResolver.openOutputStream(targetUri)?.use { output ->
-                    val success = PdfExportUtils.writeJournalPdfToStream(journalEntries, output)
-                    if (success) {
-                        Toast.makeText(context, "Exported Ritual Journal PDF successfully!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Failed to export PDF", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error exporting PDF: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     // ICS File Save Launcher
     val exportIcsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar")
@@ -199,25 +177,6 @@ fun JournalCalendarScreen(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                // Export PDF Button
-                Button(
-                    onClick = {
-                        if (journalEntries.isEmpty()) {
-                            Toast.makeText(context, "No ritual journal entries to export.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val defaultFileName = "ritual_journal_${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.pdf"
-                            pdfExportLauncher.launch(defaultFileName)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = EnochianGold, contentColor = Color.Black),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.testTag("export_pdf_calendar_button")
-                ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                }
-
                 // Export .ics Button
                 Button(
                     onClick = { showExportIcsDialog = true },
