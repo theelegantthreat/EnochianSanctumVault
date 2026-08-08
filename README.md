@@ -4,9 +4,8 @@
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-purple.svg)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20M3-blue.svg)](https://developer.android.com/jetpack/compose)
 [![Database](https://img.shields.io/badge/Storage-Room%20DB-orange.svg)](https://developer.android.com/training/data-storage/room)
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-**Enochian Magic** is a modern, comprehensive Android grimoire and ritual companion app designed for esoteric practitioners, researchers, and ceremonial magicians. Built natively with **Kotlin** an[...]
+**Enochian Magic** is a modern, comprehensive Android grimoire and ritual companion app designed for esoteric practitioners, researchers, and ceremonial magicians. Built natively with **Kotlin** and **Jetpack Compose**, it provides an offline-first suite of tools for exploring John Dee and Edward Kelley's Enochian system, tracing sigils, logging ritual workings, tracking invocations, and calculating planetary timing.
 
 ---
 
@@ -23,7 +22,7 @@
 * **Rose Cross & Wheel Tracing:** Converts any custom intention phrase or sacred name into a geometric sigil path across the 21-letter Enochian wheel.
 * **Custom Styling:** Adjustable stroke width, color palettes (Enochian Gold, Celestial Cyan, Mystic Violet, Elemental Green, etc.), and glow intensity.
 * **Grimoire Storage:** Save generated sigils directly to local Room database.
-* **PNG Image Export:** Renders high-resolution 1200x1200px framed PNG images with custom metadata and exports them to Android MediaStore (`Pictures/EnochianSigils`) or custom storage locations fo[...]
+* **PNG Image Export:** Renders high-resolution 1200x1200px framed PNG images with custom metadata and exports them to Android MediaStore (`Pictures/EnochianSigils`) or custom storage locations for physical ritual prints.
 
 ### 3. 📝 Sacred Ritual Journal
 * **Working Logs:** Record ritual dates, operations, astral conditions, mood, elemental focus, and custom notes.
@@ -97,4 +96,4 @@
 
 ## 📜 License
 
-Distributed under the GPL-3.0-or-later. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
