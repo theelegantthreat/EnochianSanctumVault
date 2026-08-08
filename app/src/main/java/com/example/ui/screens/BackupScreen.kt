@@ -606,18 +606,18 @@ private fun GitHubSyncPanel(
                     Text("Push Cloud", fontWeight = FontWeight.Bold)
                 }
 
-                Button(
+                OutlinedButton(
                     onClick = {
                         if (!com.example.utils.NetworkUtils.isNetworkAvailable(context)) {
                             statusMessage = "Offline: No active internet connection available."
                             statusType = 3
                             Toast.makeText(context, "Offline: Please check your network connection.", Toast.LENGTH_SHORT).show()
-                            return@Button
+                            return@OutlinedButton
                         }
                         if (patToken.isBlank() || githubRepo.isBlank() || githubPath.isBlank()) {
                             statusMessage = "Fill in GitHub Settings first"
                             statusType = 2
-                            return@Button
+                            return@OutlinedButton
                         }
                         isBusy = true
                         statusMessage = "Pulling data from GitHub..."
@@ -656,17 +656,14 @@ private fun GitHubSyncPanel(
                         }
                     },
                     enabled = !isBusy,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = vibrantGreen,
-                        contentColor = Color.White
-                    ),
+                    border = CardBorder(GoldOutline),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("pull_database_down_button")
                 ) {
-                    Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(20.dp), tint = primaryGold)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Pull Cloud", fontWeight = FontWeight.Bold)
+                    Text("Pull Cloud", fontWeight = FontWeight.Bold, color = primaryGold)
                 }
             }
         }
