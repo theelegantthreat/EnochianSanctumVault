@@ -241,12 +241,12 @@ private fun GitHubSyncPanel(
     // 0: Neutral/Info, 1: Success, 2: Warning, 3: Error
     var statusType by remember { mutableIntStateOf(0) }
 
-    val primaryBlue = Color(0xFF0B66C2)
+    val primaryGold = EnochianGold
     val vibrantGreen = Color(0xFF4CAF50)
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardBorder(primaryBlue.copy(alpha = 0.4f)),
+        border = CardBorder(GoldOutline.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("github_synced_vault_card")
@@ -267,7 +267,7 @@ private fun GitHubSyncPanel(
                     Icon(
                         imageVector = Icons.Default.Cloud,
                         contentDescription = "GitHub Synced Vault",
-                        tint = primaryBlue,
+                        tint = primaryGold,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -275,7 +275,7 @@ private fun GitHubSyncPanel(
                         text = "GitHub Synced Vault",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = primaryBlue
+                        color = primaryGold
                     )
                 }
                 Icon(
@@ -288,9 +288,9 @@ private fun GitHubSyncPanel(
 
             // A. Setup Instructions Callout Box
             Surface(
-                color = primaryBlue.copy(alpha = 0.08f),
+                color = GoldOutline.copy(alpha = 0.1f),
                 shape = RoundedCornerShape(12.dp),
-                border = CardBorder(primaryBlue.copy(alpha = 0.2f)),
+                border = CardBorder(GoldOutline.copy(alpha = 0.3f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -301,7 +301,7 @@ private fun GitHubSyncPanel(
                         text = "How to generate a Personal Access Token (PAT):",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = primaryBlue
+                        color = primaryGold
                     )
                     Text(
                         text = "1. Go to GitHub Settings > Developer Settings > Personal Access Tokens (Classic).",
@@ -339,7 +339,7 @@ private fun GitHubSyncPanel(
                         Icon(
                             imageVector = Icons.Default.Key,
                             contentDescription = "Key Icon",
-                            tint = primaryBlue
+                            tint = primaryGold
                         )
                     },
                     visualTransformation = if (isTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -373,7 +373,7 @@ private fun GitHubSyncPanel(
                         Icon(
                             imageVector = Icons.Default.Book,
                             contentDescription = "Repo Icon",
-                            tint = primaryBlue
+                            tint = primaryGold
                         )
                     },
                     singleLine = true,
@@ -398,7 +398,7 @@ private fun GitHubSyncPanel(
                         Icon(
                             imageVector = Icons.Default.Description,
                             contentDescription = "File Icon",
-                            tint = primaryBlue
+                            tint = primaryGold
                         )
                     },
                     singleLine = true,
@@ -455,12 +455,12 @@ private fun GitHubSyncPanel(
                             }
                         },
                         enabled = !isBusy,
-                        border = CardBorder(primaryBlue),
+                        border = CardBorder(GoldOutline),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(imageVector = Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(18.dp), tint = primaryBlue)
+                        Icon(imageVector = Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(18.dp), tint = primaryGold)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Test Conn", fontWeight = FontWeight.Bold, color = primaryBlue)
+                        Text("Test Conn", fontWeight = FontWeight.Bold, color = primaryGold)
                     }
 
                     Button(
@@ -481,8 +481,8 @@ private fun GitHubSyncPanel(
                         },
                         enabled = !isBusy,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = primaryBlue,
-                            contentColor = Color.White
+                            containerColor = primaryGold,
+                            contentColor = Color.Black
                         ),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -498,7 +498,7 @@ private fun GitHubSyncPanel(
                 1 -> vibrantGreen // Green Checkmark Success
                 2 -> Color(0xFFFFB300) // Amber Warning
                 3 -> Color(0xFFE53935) // Red Error
-                else -> primaryBlue     // Neutral
+                else -> primaryGold     // Neutral
             }
             val statusIcon = when (statusType) {
                 1 -> Icons.Default.CheckCircle
@@ -594,8 +594,8 @@ private fun GitHubSyncPanel(
                     },
                     enabled = !isBusy,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryBlue,
-                        contentColor = Color.White
+                        containerColor = primaryGold,
+                        contentColor = Color.Black
                     ),
                     modifier = Modifier
                         .weight(1f)
