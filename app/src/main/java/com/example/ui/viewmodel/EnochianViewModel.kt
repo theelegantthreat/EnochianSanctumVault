@@ -29,6 +29,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+enum class TimerMode {
+    STOPWATCH,
+    COUNTDOWN
+}
+
 class EnochianViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: EnochianRepository
@@ -147,6 +152,18 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
     private val _timerSeconds = MutableStateFlow(0)
     val timerSeconds: StateFlow<Int> = _timerSeconds.asStateFlow()
 
+    private val _timerMode = MutableStateFlow(TimerMode.STOPWATCH)
+    val timerMode: StateFlow<TimerMode> = _timerMode.asStateFlow()
+
+    private val _countdownTargetSeconds = MutableStateFlow(300) // Default 5 mins
+    val countdownTargetSeconds: StateFlow<Int> = _countdownTargetSeconds.asStateFlow()
+
+    private val _isCountdownFinished = MutableStateFlow(false)
+    val isCountdownFinished: StateFlow<Boolean> = _isCountdownFinished.asStateFlow()
+
+    private val _laps = MutableStateFlow<List<Pair<Int, Int>>>(emptyList())
+    val laps: StateFlow<List<Pair<Int, Int>>> = _laps.asStateFlow()
+
     private val _activeVibrationCount = MutableStateFlow(0)
     val activeVibrationCount: StateFlow<Int> = _activeVibrationCount.asStateFlow()
 
@@ -185,13 +202,45 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
         _selectedCallForRitual.value = callName
     }
 
+    fun setTimerMode(mode: TimerMode) {
+        if (_isTimerRunning.value) {
+            pauseTimer()
+        }
+        _timerMode.value = mode
+        _timerSeconds.value = 0
+        _isCountdownFinished.value = false
+    }
+
+    fun setCountdownTargetSeconds(targetSec: Int) {
+        _countdownTargetSeconds.value = targetSec
+        if (_timerMode.value == TimerMode.COUNTDOWN) {
+            _timerSeconds.value = 0
+            _isCountdownFinished.value = false
+        }
+    }
+
+    fun recordLap() {
+        val currentSec = _timerSeconds.value
+        val currentList = _laps.value
+        val lapNum = currentList.size + 1
+        _laps.value = currentList + Pair(lapNum, currentSec)
+    }
+
     fun startTimer() {
+        if (_isTimerRunning.value) return
         _isTimerRunning.value = true
+        _isCountdownFinished.value = false
         viewModelScope.launch {
             while (_isTimerRunning.value) {
                 kotlinx.coroutines.delay(1000)
                 if (_isTimerRunning.value) {
                     _timerSeconds.value += 1
+                    if (_timerMode.value == TimerMode.COUNTDOWN && _timerSeconds.value >= _countdownTargetSeconds.value) {
+                        _isTimerRunning.value = false
+                        _isCountdownFinished.value = true
+                        vibrateTone(528f)
+                        break
+                    }
                 }
             }
         }
@@ -205,6 +254,8 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
         _isTimerRunning.value = false
         _timerSeconds.value = 0
         _activeVibrationCount.value = 0
+        _isCountdownFinished.value = false
+        _laps.value = emptyList()
     }
 
     fun incrementVibrationCount() {

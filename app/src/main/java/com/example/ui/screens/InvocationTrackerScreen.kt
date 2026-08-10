@@ -57,6 +57,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import com.example.ui.viewmodel.TimerMode
 import com.example.data.model.InvocationRecord
 import com.example.data.reference.EnochianData
 import com.example.ui.theme.CelestialCyan
@@ -77,9 +85,16 @@ fun InvocationTrackerScreen(
     totalDurationSeconds: Int,
     isTimerRunning: Boolean,
     timerSeconds: Int,
+    timerMode: TimerMode = TimerMode.STOPWATCH,
+    countdownTargetSeconds: Int = 300,
+    isCountdownFinished: Boolean = false,
+    laps: List<Pair<Int, Int>> = emptyList(),
     vibrationCount: Int,
     selectedCall: String,
     onSelectCall: (String) -> Unit,
+    onSetTimerMode: (TimerMode) -> Unit = {},
+    onSetCountdownTargetSeconds: (Int) -> Unit = {},
+    onRecordLap: () -> Unit = {},
     onStartTimer: () -> Unit,
     onPauseTimer: () -> Unit,
     onResetTimer: () -> Unit,
@@ -90,6 +105,8 @@ fun InvocationTrackerScreen(
     modifier: Modifier = Modifier
 ) {
     var isShowSaveDialog by remember { mutableStateOf(false) }
+    var isShowCustomCountdownDialog by remember { mutableStateOf(false) }
+    var customMinutesInput by remember { mutableStateOf("10") }
     var notesInput by remember { mutableStateOf("") }
     var watchtowerInput by remember { mutableStateOf("Watchtower of East (Air)") }
 
@@ -203,7 +220,114 @@ fun InvocationTrackerScreen(
                             color = EnochianGold
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Timer Mode Switcher (Stopwatch vs Countdown)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            val isStopwatch = timerMode == TimerMode.STOPWATCH
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isStopwatch) EnochianGold else Color.Transparent)
+                                    .clickable { onSetTimerMode(TimerMode.STOPWATCH) }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Timer,
+                                        contentDescription = null,
+                                        tint = if (isStopwatch) Color.Black else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "⏱️ Stopwatch",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isStopwatch) Color.Black else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            val isCountdown = timerMode == TimerMode.COUNTDOWN
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isCountdown) EnochianGold else Color.Transparent)
+                                    .clickable { onSetTimerMode(TimerMode.COUNTDOWN) }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.HourglassTop,
+                                        contentDescription = null,
+                                        tint = if (isCountdown) Color.Black else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "⏳ Countdown",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCountdown) Color.Black else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+
+                        // Countdown Presets Row
+                        if (timerMode == TimerMode.COUNTDOWN) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Preset Ritual Durations:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val presets = listOf(
+                                    Pair("3m", 180),
+                                    Pair("5m", 300),
+                                    Pair("10m", 600),
+                                    Pair("15m", 900),
+                                    Pair("30m", 1800)
+                                )
+                                items(presets) { (label, secs) ->
+                                    val isSelected = countdownTargetSeconds == secs
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { onSetCountdownTargetSeconds(secs) },
+                                        label = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = EnochianGold,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                                item {
+                                    FilterChip(
+                                        selected = !presets.any { it.second == countdownTargetSeconds },
+                                        onClick = { isShowCustomCountdownDialog = true },
+                                        label = { Text("Custom...", fontSize = 12.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = EnochianGold,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Call Selector Dropdown
                         Box(
@@ -235,30 +359,151 @@ fun InvocationTrackerScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
-                        // Big Formatted Timer Display
-                        Text(
-                            text = formatTime(timerSeconds),
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = EnochianGold,
-                            modifier = Modifier.testTag("invocation_timer_display")
-                        )
+                        // Circular Gauge Progress Ring & Display
+                        Box(
+                            modifier = Modifier.size(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val strokeWidth = 10.dp.toPx()
+                                val diameter = size.minDimension - strokeWidth
+                                val topLeftOffset = androidx.compose.ui.geometry.Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+                                val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
+
+                                // Track background ring
+                                drawArc(
+                                    color = GoldOutline.copy(alpha = 0.3f),
+                                    startAngle = -90f,
+                                    sweepAngle = 360f,
+                                    useCenter = false,
+                                    topLeft = topLeftOffset,
+                                    size = arcSize,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                )
+
+                                // Active progress sweep
+                                val sweepAngle = if (timerMode == TimerMode.COUNTDOWN) {
+                                    val progress = (timerSeconds.toFloat() / countdownTargetSeconds.toFloat()).coerceIn(0f, 1f)
+                                    360f * (1f - progress)
+                                } else {
+                                    val secondsInMin = (timerSeconds % 60) / 60f
+                                    if (secondsInMin == 0f && timerSeconds > 0) 360f else 360f * secondsInMin
+                                }
+
+                                val ringColor = if (isCountdownFinished) ElementalGreen else if (isTimerRunning) EnochianGold else CelestialCyan
+
+                                drawArc(
+                                    color = ringColor,
+                                    startAngle = -90f,
+                                    sweepAngle = sweepAngle,
+                                    useCenter = false,
+                                    topLeft = topLeftOffset,
+                                    size = arcSize,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                val displayTimeStr = if (timerMode == TimerMode.COUNTDOWN) {
+                                    val remaining = maxOf(0, countdownTargetSeconds - timerSeconds)
+                                    formatTime(remaining)
+                                } else {
+                                    formatTime(timerSeconds)
+                                }
+
+                                Text(
+                                    text = displayTimeStr,
+                                    fontSize = 42.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCountdownFinished) ElementalGreen else EnochianGold,
+                                    modifier = Modifier.testTag("invocation_timer_display")
+                                )
+
+                                Text(
+                                    text = if (timerMode == TimerMode.COUNTDOWN) {
+                                        if (isCountdownFinished) "COUNTDOWN COMPLETED" else "TIME REMAINING"
+                                    } else {
+                                        "STOPWATCH ELAPSED"
+                                    },
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                if (timerMode == TimerMode.COUNTDOWN) {
+                                    Text(
+                                        text = "Target: ${countdownTargetSeconds / 60}m ${countdownTargetSeconds % 60}s",
+                                        fontSize = 11.sp,
+                                        color = CelestialCyan
+                                    )
+                                }
+                            }
+                        }
+
+                        // Countdown Finished Alert Banner
+                        if (isCountdownFinished) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(2.dp, EnochianGold, RoundedCornerShape(12.dp)),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = EnochianGold.copy(alpha = 0.15f)
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = EnochianGold)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            "✨ RITUAL COUNTDOWN COMPLETED ✨",
+                                            fontWeight = FontWeight.Bold,
+                                            color = EnochianGold,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "528Hz Solfeggio Vibration Tone Sounded",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = { isShowSaveDialog = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = EnochianGold, contentColor = Color.Black)
+                                        ) {
+                                            Text("Log Ritual Session", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                        OutlinedButton(onClick = { onVibrateTone(528f) }) {
+                                            Text("Chime", fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
                             text = "Chant Vibration Count: $vibrationCount",
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             color = MysticViolet,
                             fontWeight = FontWeight.SemiBold
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Big Vibration Pulse Button
                         Box(
                             modifier = Modifier
-                                .size(96.dp)
+                                .size(88.dp)
                                 .clip(CircleShape)
                                 .background(EnochianGold)
                                 .clickable {
@@ -273,7 +518,7 @@ fun InvocationTrackerScreen(
                                     Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = "Chant",
                                     tint = Color.Black,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(28.dp)
                                 )
                                 Text(
                                     text = "Vibrate (+1)",
@@ -284,11 +529,12 @@ fun InvocationTrackerScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
                         // Controls Row
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (!isTimerRunning) {
                                 Button(
@@ -318,6 +564,17 @@ fun InvocationTrackerScreen(
                                 }
                             }
 
+                            if (timerMode == TimerMode.STOPWATCH && isTimerRunning) {
+                                OutlinedButton(
+                                    onClick = onRecordLap,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Flag, contentDescription = "Lap", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Split")
+                                }
+                            }
+
                             OutlinedButton(
                                 onClick = onResetTimer,
                                 shape = RoundedCornerShape(8.dp)
@@ -338,6 +595,29 @@ fun InvocationTrackerScreen(
                                 Icon(Icons.Default.Save, contentDescription = "Log")
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Log", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Laps / Splits List
+                        if (timerMode == TimerMode.STOPWATCH && laps.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .padding(10.dp)
+                            ) {
+                                Text("Recorded Splits / Markers:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                laps.forEach { (lapNum, lapSec) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Split #$lapNum", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                                        Text(formatTime(lapSec), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CelestialCyan)
+                                    }
+                                }
                             }
                         }
                     }
@@ -482,6 +762,50 @@ fun InvocationTrackerScreen(
             },
             dismissButton = {
                 TextButton(onClick = { isShowSaveDialog = false }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // Custom Countdown Duration Dialog
+    if (isShowCustomCountdownDialog) {
+        AlertDialog(
+            onDismissRequest = { isShowCustomCountdownDialog = false },
+            title = { Text("Set Custom Countdown", color = EnochianGold, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Enter duration in minutes for your ritual countdown:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = customMinutesInput,
+                        onValueChange = { customMinutesInput = it.filter { char -> char.isDigit() } },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Minutes") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EnochianGold,
+                            unfocusedBorderColor = GoldOutline
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val mins = customMinutesInput.toIntOrNull() ?: 5
+                        val targetSecs = (mins * 60).coerceAtLeast(10)
+                        onSetCountdownTargetSeconds(targetSecs)
+                        isShowCustomCountdownDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = EnochianGold, contentColor = Color.Black)
+                ) {
+                    Text("Set Duration", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isShowCustomCountdownDialog = false }) {
                     Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },

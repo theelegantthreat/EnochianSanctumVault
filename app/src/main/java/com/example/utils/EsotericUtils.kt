@@ -4,6 +4,13 @@ import java.util.Calendar
 import java.util.Date
 import kotlin.math.floor
 
+data class LunarPhaseMetadata(
+    val phaseName: String,
+    val phaseEmoji: String,
+    val ritualSuitability: String,
+    val recommendedEnochianWorking: String
+)
+
 data class DetailedLunarPhase(
     val phaseName: String,
     val phaseEmoji: String,
@@ -39,6 +46,114 @@ data class PlanetaryHourInfo(
 
 object EsotericUtils {
 
+    private val PLANETARY_RULERS = listOf("Saturn ♄", "Jupiter ♃", "Mars ♂", "Sun ☉", "Venus ♀", "Mercury ☿", "Moon ☽")
+
+    private fun getDayStartRulerIndex(dayOfWeek: Int): Int {
+        return when (dayOfWeek) {
+            Calendar.SUNDAY -> 3    // Sun
+            Calendar.MONDAY -> 6    // Moon
+            Calendar.TUESDAY -> 2   // Mars
+            Calendar.WEDNESDAY -> 5 // Mercury
+            Calendar.THURSDAY -> 1  // Jupiter
+            Calendar.FRIDAY -> 4    // Venus
+            Calendar.SATURDAY -> 0  // Saturn
+            else -> 0
+        }
+    }
+
+    fun getPhaseMetadataForAge(ageDays: Double): LunarPhaseMetadata {
+        return when {
+            ageDays < 1.84 -> LunarPhaseMetadata(
+                "New Moon", "🌑",
+                "High potency for initiation, consecration of new Sigils & dark scrying.",
+                "Consecration of the Sigillum Dei Aemeth, 30th Aethyr TEX invocation, and spiritual reset."
+            )
+            ageDays < 5.53 -> LunarPhaseMetadata(
+                "Waxing Crescent", "🌒",
+                "Building spiritual momentum, invoking mental clarity and East Air elementals.",
+                "First Key recitation, Watchtower of Air (King BATAIVAH), and intellect expansion."
+            )
+            ageDays < 9.22 -> LunarPhaseMetadata(
+                "First Quarter", "🌓",
+                "Balanced power for willpower, determination, and Fire elementals.",
+                "Watchtower of Fire (King EDLPRNAA), Tablet of Union EXARP/BITOM vibration."
+            )
+            ageDays < 12.91 -> LunarPhaseMetadata(
+                "Waxing Gibbous", "🌔",
+                "Culminating psychic power, deep scrying, and water emotional harmonization.",
+                "Watchtower of West (King RAAGIOSL), 18th Key vibration, and crystal stone scrying."
+            )
+            ageDays < 16.61 -> LunarPhaseMetadata(
+                "Full Moon", "🌕",
+                "MAXIMUM SPIRITUAL POTENCY: Ideal for major angelic invocations and high Aethyr ascension.",
+                "Recitation of all 19 Enochian Keys, invoking the 4 Elemental Kings & First Aethyr LIL."
+            )
+            ageDays < 20.30 -> LunarPhaseMetadata(
+                "Waning Gibbous", "🌖",
+                "Gratitude, distributing wisdom, and grounding material stability.",
+                "Watchtower of Earth (King ICZHIHAL), grounding ritual notes, and sanctuary sealing."
+            )
+            ageDays < 23.99 -> LunarPhaseMetadata(
+                "Last Quarter", "🌗",
+                "Banishing negative astral residue, releasing blockages, and boundary protection.",
+                "Tablet of Union NANTA sealing, banishing pentagrams, and crystal cleansing."
+            )
+            else -> LunarPhaseMetadata(
+                "Waning Crescent", "🌘",
+                "Rest, introspection, inner sanctuary meditation, and dream work.",
+                "Silent meditation on Enochian alphabet Gematria and reflective journal logging."
+            )
+        }
+    }
+
+    fun getPhaseMetadataByName(apiPhase: String, ageDays: Double): LunarPhaseMetadata {
+        val normalizedPhase = apiPhase.trim().lowercase()
+        val (emoji, suit, working) = when {
+            normalizedPhase.contains("new") -> Triple(
+                "🌑",
+                "High potency for initiation, consecration of new Sigils & dark scrying.",
+                "Consecration of the Sigillum Dei Aemeth, 30th Aethyr TEX invocation, and spiritual reset."
+            )
+            (normalizedPhase.contains("crescent") && ageDays < 7) || normalizedPhase.contains("waxing crescent") -> Triple(
+                "🌒",
+                "Building spiritual momentum, invoking mental clarity and East Air elementals.",
+                "First Key recitation, Watchtower of Air (King BATAIVAH), and intellect expansion."
+            )
+            normalizedPhase.contains("1st quarter") || normalizedPhase.contains("first quarter") -> Triple(
+                "🌓",
+                "Balanced power for willpower, determination, and Fire elementals.",
+                "Watchtower of Fire (King EDLPRNAA), Tablet of Union EXARP/BITOM vibration."
+            )
+            (normalizedPhase.contains("gibbous") && ageDays < 14) || normalizedPhase.contains("waxing gibbous") -> Triple(
+                "🌔",
+                "Culminating psychic power, deep scrying, and water emotional harmonization.",
+                "Watchtower of West (King RAAGIOSL), 18th Key vibration, and crystal stone scrying."
+            )
+            normalizedPhase.contains("full") -> Triple(
+                "🌕",
+                "MAXIMUM SPIRITUAL POTENCY: Ideal for major angelic invocations and high Aethyr ascension.",
+                "Recitation of all 19 Enochian Keys, invoking the 4 Elemental Kings & First Aethyr LIL."
+            )
+            (normalizedPhase.contains("gibbous") && ageDays > 16) || normalizedPhase.contains("waning gibbous") -> Triple(
+                "🌖",
+                "Gratitude, distributing wisdom, and grounding material stability.",
+                "Watchtower of Earth (King ICZHIHAL), grounding ritual notes, and sanctuary sealing."
+            )
+            normalizedPhase.contains("3rd quarter") || normalizedPhase.contains("third quarter") || normalizedPhase.contains("last quarter") -> Triple(
+                "🌗",
+                "Banishing negative astral residue, releasing blockages, and boundary protection.",
+                "Tablet of Union NANTA sealing, banishing pentagrams, and crystal cleansing."
+            )
+            else -> Triple(
+                "🌘",
+                "Rest, introspection, inner sanctuary meditation, and dream work.",
+                "Silent meditation on Enochian alphabet Gematria and reflective journal logging."
+            )
+        }
+        val name = apiPhase.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        return LunarPhaseMetadata(name, emoji, suit, working)
+    }
+
     fun getDetailedLunarPhase(): DetailedLunarPhase {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
@@ -70,80 +185,17 @@ object EsotericUtils {
         val zodiacIndex = (floor((day + month * 2.5) % 12)).toInt().coerceIn(0, 11)
         val currentZodiac = zodiacSigns[zodiacIndex]
 
-        return when {
-            ageDays < 1.84 -> DetailedLunarPhase(
-                phaseName = "New Moon",
-                phaseEmoji = "🌑",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "High potency for initiation, consecration of new Sigils & dark scrying.",
-                recommendedEnochianWorking = "Consecration of the Sigillum Dei Aemeth, 30th Aethyr TEX invocation, and spiritual reset."
-            )
-            ageDays < 5.53 -> DetailedLunarPhase(
-                phaseName = "Waxing Crescent",
-                phaseEmoji = "🌒",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "Building spiritual momentum, invoking mental clarity and East Air elementals.",
-                recommendedEnochianWorking = "First Key recitation, Watchtower of Air (King BATAIVAH), and intellect expansion."
-            )
-            ageDays < 9.22 -> DetailedLunarPhase(
-                phaseName = "First Quarter",
-                phaseEmoji = "🌓",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "Balanced power for willpower, determination, and Fire elementals.",
-                recommendedEnochianWorking = "Watchtower of Fire (King EDLPRNAA), Tablet of Union EXARP/BITOM vibration."
-            )
-            ageDays < 12.91 -> DetailedLunarPhase(
-                phaseName = "Waxing Gibbous",
-                phaseEmoji = "🌔",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "Culminating psychic power, deep scrying, and water emotional harmonization.",
-                recommendedEnochianWorking = "Watchtower of West (King RAAGIOSL), 18th Key vibration, and crystal stone scrying."
-            )
-            ageDays < 16.61 -> DetailedLunarPhase(
-                phaseName = "Full Moon",
-                phaseEmoji = "🌕",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "MAXIMUM SPIRITUAL POTENCY: Ideal for major angelic invocations and high Aethyr ascension.",
-                recommendedEnochianWorking = "Recitation of all 19 Enochian Keys, invoking the 4 Elemental Kings & First Aethyr LIL."
-            )
-            ageDays < 20.30 -> DetailedLunarPhase(
-                phaseName = "Waning Gibbous",
-                phaseEmoji = "🌖",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "Gratitude, distributing wisdom, and grounding material stability.",
-                recommendedEnochianWorking = "Watchtower of Earth (King ICZHIHAL), grounding ritual notes, and sanctuary sealing."
-            )
-            ageDays < 23.99 -> DetailedLunarPhase(
-                phaseName = "Last Quarter",
-                phaseEmoji = "🌗",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "Banishing negative astral residue, releasing blockages, and boundary protection.",
-                recommendedEnochianWorking = "Tablet of Union NANTA sealing, banishing pentagrams, and crystal cleansing."
-            )
-            else -> DetailedLunarPhase(
-                phaseName = "Waning Crescent",
-                phaseEmoji = "🌘",
-                illuminationPercent = illuminationPercent,
-                moonAgeDays = ageDays,
-                zodiacSign = currentZodiac,
-                ritualSuitability = "Rest, introspection, inner sanctuary meditation, and dream work.",
-                recommendedEnochianWorking = "Silent meditation on Enochian alphabet Gematria and reflective journal logging."
-            )
-        }
+        val meta = getPhaseMetadataForAge(ageDays)
+
+        return DetailedLunarPhase(
+            phaseName = meta.phaseName,
+            phaseEmoji = meta.phaseEmoji,
+            illuminationPercent = illuminationPercent,
+            moonAgeDays = ageDays,
+            zodiacSign = currentZodiac,
+            ritualSuitability = meta.ritualSuitability,
+            recommendedEnochianWorking = meta.recommendedEnochianWorking
+        )
     }
 
     fun getUpcomingMilestones(): List<UpcomingLunarMilestone> {
@@ -171,43 +223,18 @@ object EsotericUtils {
 
     fun getCurrentPlanetaryHour(): String {
         val calendar = Calendar.getInstance()
-        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) // 1 = Sun, 2 = Mon, 3 = Tue, ...
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
         val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
-
-        val rulers = listOf("Saturn ♄", "Jupiter ♃", "Mars ♂", "Sun ☉", "Venus ♀", "Mercury ☿", "Moon ☽")
-
-        val dayStartRulerIndex = when (dayOfWeek) {
-            Calendar.SUNDAY -> 3    // Sun
-            Calendar.MONDAY -> 6    // Moon
-            Calendar.TUESDAY -> 2   // Mars
-            Calendar.WEDNESDAY -> 5 // Mercury
-            Calendar.THURSDAY -> 1  // Jupiter
-            Calendar.FRIDAY -> 4    // Venus
-            Calendar.SATURDAY -> 0  // Saturn
-            else -> 0
-        }
-
+        val dayStartRulerIndex = getDayStartRulerIndex(dayOfWeek)
         val currentRulerIndex = (dayStartRulerIndex + (hourOfDay % 24)) % 7
-        return rulers[currentRulerIndex]
+        return PLANETARY_RULERS[currentRulerIndex]
     }
 
     fun get24PlanetaryHoursOfDay(): List<PlanetaryHourInfo> {
         val calendar = Calendar.getInstance()
         val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
         val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-
-        val rulers = listOf("Saturn ♄", "Jupiter ♃", "Mars ♂", "Sun ☉", "Venus ♀", "Mercury ☿", "Moon ☽")
-
-        val dayStartRulerIndex = when (dayOfWeek) {
-            Calendar.SUNDAY -> 3    // Sun
-            Calendar.MONDAY -> 6    // Moon
-            Calendar.TUESDAY -> 2   // Mars
-            Calendar.WEDNESDAY -> 5 // Mercury
-            Calendar.THURSDAY -> 1  // Jupiter
-            Calendar.FRIDAY -> 4    // Venus
-            Calendar.SATURDAY -> 0  // Saturn
-            else -> 0
-        }
+        val dayStartRulerIndex = getDayStartRulerIndex(dayOfWeek)
 
         return (0..23).map { hour ->
             val rulerIndex = (dayStartRulerIndex + hour) % 7
@@ -216,7 +243,7 @@ object EsotericUtils {
             PlanetaryHourInfo(
                 hourIndex = hour,
                 timeRangeLabel = "$startStr - $endStr",
-                planetRuler = rulers[rulerIndex],
+                planetRuler = PLANETARY_RULERS[rulerIndex],
                 isCurrentHour = (hour == currentHour),
                 isDayHour = (hour in 6..17)
             )

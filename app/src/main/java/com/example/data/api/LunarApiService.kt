@@ -121,57 +121,15 @@ object AstronomicalLunarRepository {
 
     private fun mapApiPhaseToEnochian(apiPhase: String, ageDays: Double, illumPercent: Int): DetailedLunarPhase {
         val basePhase = EsotericUtils.getDetailedLunarPhase()
-        val normalizedPhase = apiPhase.trim().lowercase()
-        val (emoji, suit, working) = when {
-            normalizedPhase.contains("new") -> Triple(
-                "🌑",
-                "High potency for initiation, consecration of new Sigils & dark scrying.",
-                "Consecration of the Sigillum Dei Aemeth, 30th Aethyr TEX invocation, and spiritual reset."
-            )
-            (normalizedPhase.contains("crescent") && ageDays < 7) || normalizedPhase.contains("waxing crescent") -> Triple(
-                "🌒",
-                "Building spiritual momentum, invoking mental clarity and East Air elementals.",
-                "First Key recitation, Watchtower of Air (King BATAIVAH), and intellect expansion."
-            )
-            normalizedPhase.contains("1st quarter") || normalizedPhase.contains("first quarter") -> Triple(
-                "🌓",
-                "Balanced power for willpower, determination, and Fire elementals.",
-                "Watchtower of Fire (King EDLPRNAA), Tablet of Union EXARP/BITOM vibration."
-            )
-            (normalizedPhase.contains("gibbous") && ageDays < 14) || normalizedPhase.contains("waxing gibbous") -> Triple(
-                "🌔",
-                "Culminating psychic power, deep scrying, and water emotional harmonization.",
-                "Watchtower of West (King RAAGIOSL), 18th Key vibration, and crystal stone scrying."
-            )
-            normalizedPhase.contains("full") -> Triple(
-                "🌕",
-                "MAXIMUM SPIRITUAL POTENCY: Ideal for major angelic invocations and high Aethyr ascension.",
-                "Recitation of all 19 Enochian Keys, invoking the 4 Elemental Kings & First Aethyr LIL."
-            )
-            (normalizedPhase.contains("gibbous") && ageDays > 16) || normalizedPhase.contains("waning gibbous") -> Triple(
-                "🌖",
-                "Gratitude, distributing wisdom, and grounding material stability.",
-                "Watchtower of Earth (King ICZHIHAL), grounding ritual notes, and sanctuary sealing."
-            )
-            normalizedPhase.contains("3rd quarter") || normalizedPhase.contains("third quarter") || normalizedPhase.contains("last quarter") -> Triple(
-                "🌗",
-                "Releasing old contracts, dissolving blockages, and purifying the ritual space.",
-                "Lesser Enochian banishing, 10th Key invocation, and elemental purification."
-            )
-            else -> Triple(
-                "🌘",
-                "Rest, contemplative scrying, inner temple reflection, and preparation.",
-                "Silent meditation on the Holy Table, studying the Aethyrs, and dream work."
-            )
-        }
+        val meta = EsotericUtils.getPhaseMetadataByName(apiPhase, ageDays)
 
         return basePhase.copy(
-            phaseName = apiPhase.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-            phaseEmoji = emoji,
+            phaseName = meta.phaseName,
+            phaseEmoji = meta.phaseEmoji,
             illuminationPercent = illumPercent,
             moonAgeDays = ageDays,
-            ritualSuitability = suit,
-            recommendedEnochianWorking = working
+            ritualSuitability = meta.ritualSuitability,
+            recommendedEnochianWorking = meta.recommendedEnochianWorking
         )
     }
 }

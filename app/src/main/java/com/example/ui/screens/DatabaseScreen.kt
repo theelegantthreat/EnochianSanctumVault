@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.ui.platform.LocalContext
 import com.example.utils.SigilExportUtils
 import androidx.compose.material3.AlertDialog
@@ -111,6 +112,7 @@ fun DatabaseScreen(
     onRecordFlashcardReview: (String, Int, Boolean) -> Unit = { _, _, _ -> },
     onResetFlashcardProgress: () -> Unit = {},
     onVibrateCall: (Float) -> Unit,
+    onStartCallRitual: ((String) -> Unit)? = null,
     onTraceSigilInGenerator: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -210,7 +212,8 @@ fun DatabaseScreen(
                     it.element.contains(searchQuery, ignoreCase = true)
                 },
                 audioPlayer = audioPlayer,
-                onVibrateCall = onVibrateCall
+                onVibrateCall = onVibrateCall,
+                onStartCallRitual = onStartCallRitual
             )
             1 -> AethyrsList(
                 aethyrs = EnochianData.AETHYRS.filter {
@@ -271,7 +274,8 @@ fun DatabaseScreen(
 fun CallsList(
     calls: List<EnochianCall>,
     audioPlayer: EnochianAudioPlayer,
-    onVibrateCall: (Float) -> Unit
+    onVibrateCall: (Float) -> Unit,
+    onStartCallRitual: ((String) -> Unit)? = null
 ) {
     var expandedCallId by remember { mutableStateOf<Int?>(1) }
 
@@ -512,6 +516,21 @@ fun CallsList(
                                             Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Tone", modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("${call.frequencyHz.toInt()}Hz Tone", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                    }
+
+                                    if (onStartCallRitual != null) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        OutlinedButton(
+                                            onClick = { onStartCallRitual(call.title) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = EnochianGold),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, EnochianGold)
+                                        ) {
+                                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("⏱️ Begin Ritual Timer for ${call.title}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                     }
                                 }

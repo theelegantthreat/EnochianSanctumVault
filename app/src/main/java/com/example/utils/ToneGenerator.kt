@@ -3,8 +3,8 @@ package com.example.utils
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.sin
@@ -13,12 +13,13 @@ class ToneGenerator {
     private var audioTrack: AudioTrack? = null
     private var isPlaying = false
     private var toneJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     fun playTone(frequencyHz: Float, durationMs: Long = 2000L) {
         stopTone()
         isPlaying = true
 
-        toneJob = GlobalScope.launch(Dispatchers.IO) {
+        toneJob = scope.launch {
             val sampleRate = 44100
             val numSamples = (sampleRate * (durationMs / 1000.0)).toInt()
             val sample = FloatArray(numSamples)
@@ -53,7 +54,9 @@ class ToneGenerator {
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .build()
 
-                audioTrack = track
+                synchronized(this@ToneGenerator) {
+                    audioTrack = track
+                }
                 track.write(sample, 0, numSamples, AudioTrack.WRITE_BLOCKING)
                 if (isPlaying) {
                     track.play()
@@ -67,16 +70,19 @@ class ToneGenerator {
     fun stopTone() {
         isPlaying = false
         toneJob?.cancel()
-        try {
-            audioTrack?.let {
-                if (it.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                    it.stop()
+        synchronized(this) {
+            try {
+                audioTrack?.let {
+                    if (it.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                        it.stop()
+                    }
+                    it.release()
                 }
-                it.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+            audioTrack = null
         }
-        audioTrack = null
     }
 }
+

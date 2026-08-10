@@ -117,6 +117,10 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
 
     val isTimerRunning by viewModel.isTimerRunning.collectAsStateWithLifecycle()
     val timerSeconds by viewModel.timerSeconds.collectAsStateWithLifecycle()
+    val timerMode by viewModel.timerMode.collectAsStateWithLifecycle()
+    val countdownTargetSeconds by viewModel.countdownTargetSeconds.collectAsStateWithLifecycle()
+    val isCountdownFinished by viewModel.isCountdownFinished.collectAsStateWithLifecycle()
+    val laps by viewModel.laps.collectAsStateWithLifecycle()
     val vibrationCount by viewModel.activeVibrationCount.collectAsStateWithLifecycle()
     val selectedCallForRitual by viewModel.selectedCallForRitual.collectAsStateWithLifecycle()
 
@@ -202,6 +206,18 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
         }
     }
 
+    val navigateToRoute: (String) -> Unit = { route ->
+        if (currentRoute != route) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -209,17 +225,7 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                 title = "Enochian Grimoire",
                 onExportJson = { launchExportJson() },
                 onImportJson = { launchImportJson() },
-                onNavigateToScreen = { route ->
-                    if (currentRoute != route) {
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
+                onNavigateToScreen = navigateToRoute
             )
         },
         bottomBar = {
@@ -241,17 +247,7 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                         val isSelected = currentRoute == screen.route
                         NavigationBarItem(
                             selected = isSelected,
-                            onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
+                            onClick = { navigateToRoute(screen.route) },
                             icon = {
                                 Icon(
                                     imageVector = screen.icon,
@@ -299,15 +295,13 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                     onVibrateCall = { frequency ->
                         viewModel.vibrateTone(frequency)
                     },
+                    onStartCallRitual = { callTitle ->
+                        viewModel.setSelectedCallForRitual(callTitle)
+                        navigateToRoute(NavigationScreen.TRACKER.route)
+                    },
                     onTraceSigilInGenerator = { phrase ->
                         activeSigilIntention = phrase
-                        navController.navigate(NavigationScreen.SIGIL.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        navigateToRoute(NavigationScreen.SIGIL.route)
                     }
                 )
             }
@@ -327,24 +321,8 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
 
             composable(NavigationScreen.LUNAR.route) {
                 LunarCalendarScreen(
-                    onNavigateToTracker = {
-                        navController.navigate(NavigationScreen.TRACKER.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onNavigateToSigils = {
-                        navController.navigate(NavigationScreen.SIGIL.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+                    onNavigateToTracker = { navigateToRoute(NavigationScreen.TRACKER.route) },
+                    onNavigateToSigils = { navigateToRoute(NavigationScreen.SIGIL.route) },
                     viewModel = viewModel
                 )
             }
@@ -357,11 +335,18 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                     totalDurationSeconds = totalDurationSeconds ?: 0,
                     isTimerRunning = isTimerRunning,
                     timerSeconds = timerSeconds,
+                    timerMode = timerMode,
+                    countdownTargetSeconds = countdownTargetSeconds,
+                    isCountdownFinished = isCountdownFinished,
+                    laps = laps,
                     vibrationCount = vibrationCount,
                     selectedCall = selectedCallForRitual,
                     onSelectCall = { callName ->
                         viewModel.setSelectedCallForRitual(callName)
                     },
+                    onSetTimerMode = { mode -> viewModel.setTimerMode(mode) },
+                    onSetCountdownTargetSeconds = { targetSec -> viewModel.setCountdownTargetSeconds(targetSec) },
+                    onRecordLap = { viewModel.recordLap() },
                     onStartTimer = { viewModel.startTimer() },
                     onPauseTimer = { viewModel.pauseTimer() },
                     onResetTimer = { viewModel.resetTimer() },
