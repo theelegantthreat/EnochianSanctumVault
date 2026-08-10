@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
@@ -132,7 +133,7 @@ fun RitualJournalScreen(
     }
 
     val availableMoods = remember {
-        listOf("All Moods", "Serene 🕯️", "Exalted 🌟", "Focused 👁️", "Tranquil 🌌", "Mystic ⚡", "Reflective 🌒", "Purified 🌿")
+        listOf("All Moods", "Exalted 🌟", "Focused 👁️", "Mystic ⚡", "Purified 🌿", "Reflective 🌒", "Serene 🕯️", "Tranquil 🌌")
     }
 
     var selectedMoodFilter by remember { mutableStateOf("All Moods") }
@@ -156,14 +157,35 @@ fun RitualJournalScreen(
 
     var isCallDropdownExpanded by remember { mutableStateOf(false) }
 
+    val sdfShort = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val sdfWithTime = remember { SimpleDateFormat("yyyy-MM-dd, HH:mm:ss", Locale.getDefault()) }
+    val sdfIso = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val sdfUs = remember { SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()) }
+    val sdfMonthFull = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()) }
+    val sdfMonthShort = remember { SimpleDateFormat("MMM yyyy", Locale.getDefault()) }
+
     val filteredEntries = journalEntries.filter { entry ->
+        val dateObj = Date(entry.timestamp)
+        val formattedShort = sdfShort.format(dateObj)
+        val formattedWithTime = sdfWithTime.format(dateObj)
+        val formattedIso = sdfIso.format(dateObj)
+        val formattedUs = sdfUs.format(dateObj)
+        val formattedMonthFull = sdfMonthFull.format(dateObj)
+        val formattedMonthShort = sdfMonthShort.format(dateObj)
+
         val matchesSearch = searchQuery.isBlank() ||
                 entry.title.contains(searchQuery, ignoreCase = true) ||
                 entry.intention.contains(searchQuery, ignoreCase = true) ||
                 entry.outcomeNotes.contains(searchQuery, ignoreCase = true) ||
                 entry.insights.contains(searchQuery, ignoreCase = true) ||
                 entry.keyOrCallUsed.contains(searchQuery, ignoreCase = true) ||
-                entry.mood.contains(searchQuery, ignoreCase = true)
+                entry.mood.contains(searchQuery, ignoreCase = true) ||
+                formattedShort.contains(searchQuery, ignoreCase = true) ||
+                formattedWithTime.contains(searchQuery, ignoreCase = true) ||
+                formattedIso.contains(searchQuery, ignoreCase = true) ||
+                formattedUs.contains(searchQuery, ignoreCase = true) ||
+                formattedMonthFull.contains(searchQuery, ignoreCase = true) ||
+                formattedMonthShort.contains(searchQuery, ignoreCase = true)
 
         val matchesMood = selectedMoodFilter == "All Moods" || entry.mood == selectedMoodFilter
 
@@ -216,8 +238,15 @@ fun RitualJournalScreen(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
                 modifier = Modifier.fillMaxWidth().testTag("journal_search_input"),
-                placeholder = { Text("Search ritual outcomes, moods & insights...") },
+                placeholder = { Text("Filter entries by title, date (e.g. 2026-08-09, Aug 09), mood...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = EnochianGold) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchQueryChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = EnochianGold,
                     unfocusedBorderColor = GoldOutline,
@@ -802,20 +831,6 @@ fun RitualJournalScreen(
                     }
                 }
             }
-        }
-
-        val filteredEntries = journalEntries.filter { entry ->
-            val matchesSearch = searchQuery.isBlank() ||
-                    entry.title.contains(searchQuery, ignoreCase = true) ||
-                    entry.intention.contains(searchQuery, ignoreCase = true) ||
-                    entry.outcomeNotes.contains(searchQuery, ignoreCase = true) ||
-                    entry.insights.contains(searchQuery, ignoreCase = true) ||
-                    entry.keyOrCallUsed.contains(searchQuery, ignoreCase = true) ||
-                    entry.mood.contains(searchQuery, ignoreCase = true)
-
-            val matchesMood = selectedMoodFilter == "All Moods" || entry.mood == selectedMoodFilter
-
-            matchesSearch && matchesMood
         }
 
         // Journal List

@@ -25,6 +25,10 @@ import com.example.data.api.AstronomicalLunarRepository
 import com.example.utils.DetailedLunarPhase
 import com.example.utils.EsotericUtils
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 class EnochianViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: EnochianRepository
@@ -100,11 +104,34 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
         if (query.isBlank()) {
             entries
         } else {
-            entries.filter {
-                it.title.contains(query, ignoreCase = true) ||
-                it.intention.contains(query, ignoreCase = true) ||
-                it.insights.contains(query, ignoreCase = true) ||
-                it.keyOrCallUsed.contains(query, ignoreCase = true)
+            val sdfShort = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+            val sdfWithTime = SimpleDateFormat("yyyy-MM-dd, HH:mm:ss", Locale.getDefault())
+            val sdfIso = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val sdfUs = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+            val sdfMonthFull = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+            val sdfMonthShort = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+
+            entries.filter { entry ->
+                val dateObj = Date(entry.timestamp)
+                val formattedShort = sdfShort.format(dateObj)
+                val formattedWithTime = sdfWithTime.format(dateObj)
+                val formattedIso = sdfIso.format(dateObj)
+                val formattedUs = sdfUs.format(dateObj)
+                val formattedMonthFull = sdfMonthFull.format(dateObj)
+                val formattedMonthShort = sdfMonthShort.format(dateObj)
+
+                entry.title.contains(query, ignoreCase = true) ||
+                entry.intention.contains(query, ignoreCase = true) ||
+                entry.outcomeNotes.contains(query, ignoreCase = true) ||
+                entry.insights.contains(query, ignoreCase = true) ||
+                entry.keyOrCallUsed.contains(query, ignoreCase = true) ||
+                entry.mood.contains(query, ignoreCase = true) ||
+                formattedShort.contains(query, ignoreCase = true) ||
+                formattedWithTime.contains(query, ignoreCase = true) ||
+                formattedIso.contains(query, ignoreCase = true) ||
+                formattedUs.contains(query, ignoreCase = true) ||
+                formattedMonthFull.contains(query, ignoreCase = true) ||
+                formattedMonthShort.contains(query, ignoreCase = true)
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
