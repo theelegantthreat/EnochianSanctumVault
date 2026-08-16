@@ -14,8 +14,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -468,7 +470,7 @@ fun CallsList(
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         // Play / Pause Button
@@ -476,22 +478,23 @@ fun CallsList(
                                             Button(
                                                 onClick = { audioPlayer.pauseCall() },
                                                 colors = ButtonDefaults.buttonColors(containerColor = MysticViolet, contentColor = Color.Black),
-                                                shape = RoundedCornerShape(8.dp)
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.weight(1f)
                                             ) {
-                                                Icon(Icons.Default.Pause, contentDescription = "Pause", modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.Pause, contentDescription = "Pause", modifier = Modifier.size(18.dp), tint = Color.Black)
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Pause", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                Text("Pause", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Black)
                                             }
                                         } else {
                                             Button(
                                                 onClick = { audioPlayer.playCall(call) },
                                                 colors = ButtonDefaults.buttonColors(containerColor = EnochianGold, contentColor = Color.Black),
                                                 shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.testTag("play_call_button_${call.id}")
+                                                modifier = Modifier.weight(1f).testTag("play_call_button_${call.id}")
                                             ) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = "Play", modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.PlayArrow, contentDescription = "Play", modifier = Modifier.size(18.dp), tint = Color.Black)
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Play Chant", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                Text("Play Chant", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Black)
                                             }
                                         }
 
@@ -500,22 +503,32 @@ fun CallsList(
                                             onClick = { audioPlayer.replayCall() },
                                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = EnochianGold),
                                             shape = RoundedCornerShape(8.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, GoldOutline)
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, GoldOutline),
+                                            modifier = Modifier.weight(1f)
                                         ) {
                                             Icon(Icons.Default.Replay, contentDescription = "Replay", modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("Replay", fontSize = 12.sp)
                                         }
+                                    }
 
-                                        // Vibrate Tone Button
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // Vibrate Tone Button in row below with black font
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Button(
                                             onClick = { onVibrateCall(call.frequencyHz) },
                                             colors = ButtonDefaults.buttonColors(containerColor = CelestialCyan, contentColor = Color.Black),
-                                            shape = RoundedCornerShape(8.dp)
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Tone", modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("${call.frequencyHz.toInt()}Hz Tone", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Tone", modifier = Modifier.size(18.dp), tint = Color.Black)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("${call.frequencyHz.toInt()}Hz Tone Vibration", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Black)
                                         }
                                     }
 
@@ -606,33 +619,51 @@ fun SigilGlossaryList(
 
                     // Correspondences Grid Tags
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         CorrespondenceTag("Planet: ${sigil.planet}", MysticViolet)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         CorrespondenceTag("Element: ${sigil.element}", CelestialCyan)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         CorrespondenceTag("Ruler: ${sigil.angelicRuler}", ElementalGreen)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         CorrespondenceTag("Gem: ${sigil.gemstone}", EnochianGoldLight)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (onTraceSigil != null) {
                             Button(
                                 onClick = { onTraceSigil(sigil.intentionPhrase) },
-                                modifier = Modifier.weight(1f).testTag("trace_sigil_button_${sigil.id}"),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .testTag("trace_sigil_button_${sigil.id}"),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                     contentColor = EnochianGold
@@ -661,7 +692,10 @@ fun SigilGlossaryList(
                                     Toast.makeText(context, "Saved sigil PNG image to gallery.", Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            modifier = Modifier.weight(1f).testTag("export_glossary_sigil_${sigil.id}"),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .testTag("export_glossary_sigil_${sigil.id}"),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = EnochianGold,
                                 contentColor = Color.Black
@@ -778,21 +812,40 @@ fun PlanetaryCorrespondencesList(
 
                     // Key correspondences grid tags
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         CorrespondenceTag("Senior: ${planet.enochianSenior}", EnochianGold)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         CorrespondenceTag("Ruler: ${planet.angelicRuler}", CelestialCyan)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         CorrespondenceTag("Metal: ${planet.metal}", MysticViolet)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         CorrespondenceTag("Incense: ${planet.incense}", ElementalGreen)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         CorrespondenceTag("Gem: ${planet.gemstone}", EnochianGoldLight)
                     }
 
