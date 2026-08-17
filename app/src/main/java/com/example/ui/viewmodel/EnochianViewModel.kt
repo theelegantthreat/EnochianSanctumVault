@@ -131,7 +131,6 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
                 entry.insights.contains(query, ignoreCase = true) ||
                 entry.keyOrCallUsed.contains(query, ignoreCase = true) ||
                 entry.mood.contains(query, ignoreCase = true) ||
-                entry.tags.contains(query, ignoreCase = true) ||
                 formattedShort.contains(query, ignoreCase = true) ||
                 formattedWithTime.contains(query, ignoreCase = true) ||
                 formattedIso.contains(query, ignoreCase = true) ||
@@ -304,8 +303,7 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
         outcomeNotes: String,
         insights: String,
         rating: Int,
-        mood: String = "Serene 🕯️",
-        tags: String = ""
+        mood: String = "Serene 🕯️"
     ) {
         viewModelScope.launch {
             repository.insertJournalEntry(
@@ -319,7 +317,6 @@ class EnochianViewModel(application: Application) : AndroidViewModel(application
                     insights = insights,
                     rating = rating,
                     mood = mood,
-                    tags = tags,
                     isCloudSynced = true
                 )
             )

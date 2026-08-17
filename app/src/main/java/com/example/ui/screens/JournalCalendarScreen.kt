@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.filled.Today
-import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -63,8 +62,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -803,32 +800,6 @@ fun JournalEntryCalendarCard(
                     colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, labelColor = MaterialTheme.colorScheme.onSurfaceVariant),
                     border = AssistChipDefaults.assistChipBorder(borderColor = GoldOutline, enabled = true)
                 )
-            }
-
-            if (entry.tags.isNotBlank()) {
-                val entryTags = entry.tags.split(",", " ").map { it.trim().removePrefix("#") }.filter { it.isNotBlank() }
-                if (entryTags.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(entryTags) { tag ->
-                            SuggestionChip(
-                                onClick = { },
-                                label = { Text("#$tag", fontSize = 9.sp) },
-                                icon = {
-                                    Icon(Icons.Default.Tag, contentDescription = null, tint = CelestialCyan, modifier = Modifier.size(10.dp))
-                                },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    labelColor = CelestialCyan
-                                ),
-                                border = SuggestionChipDefaults.suggestionChipBorder(
-                                    borderColor = GoldOutline,
-                                    enabled = true
-                                )
-                            )
-                        }
-                    }
-                }
             }
 
             if (entry.outcomeNotes.isNotBlank()) {

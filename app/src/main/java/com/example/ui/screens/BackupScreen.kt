@@ -921,7 +921,6 @@ fun exportBackupDataToJson(
         obj.put("insights", entry.insights)
         obj.put("rating", entry.rating)
         obj.put("mood", entry.mood)
-        obj.put("tags", entry.tags)
         journalArr.put(obj)
     }
     root.put("journalEntries", journalArr)
