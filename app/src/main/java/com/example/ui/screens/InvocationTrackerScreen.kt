@@ -583,18 +583,27 @@ fun InvocationTrackerScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Reset")
                             }
+                        }
 
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Blue Log Button in a dedicated row below
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             Button(
                                 onClick = { isShowSaveDialog = true },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = CelestialCyan,
                                     contentColor = Color.Black
                                 ),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Default.Save, contentDescription = "Log")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Log", fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.Save, contentDescription = "Log", tint = Color.Black)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Log", fontWeight = FontWeight.Bold, color = Color.Black)
                             }
                         }
 
