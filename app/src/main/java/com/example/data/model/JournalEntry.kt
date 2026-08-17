@@ -16,5 +16,6 @@ data class JournalEntry(
     val insights: String,
     val rating: Int, // 1 to 5 stars/energy rating
     val mood: String = "Serene 🕯️",
+    val tags: String = "", // Comma/space separated tags (e.g. "#evocation #scrying")
     val isCloudSynced: Boolean = true // Simulated secure cloud backup status
 )

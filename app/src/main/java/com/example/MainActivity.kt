@@ -374,8 +374,8 @@ fun MainAppScreen(viewModel: EnochianViewModel) {
                     isAnalyzingSentiment = isAnalyzingSentiment,
                     sentimentAnalysisResult = sentimentAnalysisResult,
                     onAnalyzeSentiments = { viewModel.analyzeJournalSentiments() },
-                    onSaveJournalEntry = { title, call, planet, moon, intent, outcome, insights, rating, mood ->
-                        viewModel.saveJournalEntry(title, call, planet, moon, intent, outcome, insights, rating, mood)
+                    onSaveJournalEntry = { title, call, planet, moon, intent, outcome, insights, rating, mood, tags ->
+                        viewModel.saveJournalEntry(title, call, planet, moon, intent, outcome, insights, rating, mood, tags)
                     },
                     onDeleteJournalEntry = { id ->
                         viewModel.deleteJournalEntry(id)

@@ -23,7 +23,7 @@ import com.example.data.model.SavedSigil
         EnochianKeyEntity::class,
         CharacterMasteryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class EnochianDatabase : RoomDatabase() {

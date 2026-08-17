@@ -83,8 +83,10 @@ import java.util.Date
 import java.util.Locale
 
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.FilterList
@@ -94,8 +96,14 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import com.example.data.model.RitualSentimentAnalysisResult
 import com.example.data.model.EntrySentimentSummary
+import com.example.ui.components.DEFAULT_RITUAL_TAGS
+import com.example.ui.components.RichTextEditor
+import com.example.ui.components.RichTextReflectionView
+import com.example.ui.components.TagCategorizer
 
 @Composable
 fun RitualJournalScreen(
@@ -108,7 +116,7 @@ fun RitualJournalScreen(
     isAnalyzingSentiment: Boolean = false,
     sentimentAnalysisResult: RitualSentimentAnalysisResult? = null,
     onAnalyzeSentiments: () -> Unit = {},
-    onSaveJournalEntry: (String, String, String, String, String, String, String, Int, String) -> Unit,
+    onSaveJournalEntry: (String, String, String, String, String, String, String, Int, String, String) -> Unit,
     onDeleteJournalEntry: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -137,12 +145,14 @@ fun RitualJournalScreen(
     }
 
     var selectedMoodFilter by remember { mutableStateOf("All Moods") }
+    var selectedTagFilter by remember { mutableStateOf("All Tags") }
     var selectedMoodForNewEntry by remember { mutableStateOf("Serene 🕯️") }
 
     // State for the inline "New entry" box below search box
     var inlineOutcomeNotes by remember { mutableStateOf("") }
     var inlineInsights by remember { mutableStateOf("") }
     var inlineMood by remember { mutableStateOf("Serene 🕯️") }
+    var inlineTags by remember { mutableStateOf<List<String>>(listOf("evocation", "astral_vision")) }
 
     var isShowNewEntryDialog by remember { mutableStateOf(false) }
 
@@ -154,8 +164,18 @@ fun RitualJournalScreen(
     var outcomeNotes by remember { mutableStateOf("") }
     var insights by remember { mutableStateOf("") }
     var rating by remember { mutableStateOf(5) }
+    var newEntryTags by remember { mutableStateOf<List<String>>(listOf("evocation")) }
 
     var isCallDropdownExpanded by remember { mutableStateOf(false) }
+
+    val allAvailableTags = remember(journalEntries) {
+        val extracted = journalEntries.flatMap { entry ->
+            entry.tags.split(",", " ", "#")
+                .map { it.trim().lowercase() }
+                .filter { it.isNotBlank() }
+        }.toSet()
+        listOf("All Tags") + (DEFAULT_RITUAL_TAGS.toSet() + extracted).toList()
+    }
 
     val sdfShort = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val sdfWithTime = remember { SimpleDateFormat("yyyy-MM-dd, HH:mm:ss", Locale.getDefault()) }
@@ -180,6 +200,7 @@ fun RitualJournalScreen(
                 entry.insights.contains(searchQuery, ignoreCase = true) ||
                 entry.keyOrCallUsed.contains(searchQuery, ignoreCase = true) ||
                 entry.mood.contains(searchQuery, ignoreCase = true) ||
+                entry.tags.contains(searchQuery, ignoreCase = true) ||
                 formattedShort.contains(searchQuery, ignoreCase = true) ||
                 formattedWithTime.contains(searchQuery, ignoreCase = true) ||
                 formattedIso.contains(searchQuery, ignoreCase = true) ||
@@ -188,8 +209,9 @@ fun RitualJournalScreen(
                 formattedMonthShort.contains(searchQuery, ignoreCase = true)
 
         val matchesMood = selectedMoodFilter == "All Moods" || entry.mood == selectedMoodFilter
+        val matchesTag = selectedTagFilter == "All Tags" || entry.tags.contains(selectedTagFilter, ignoreCase = true)
 
-        matchesSearch && matchesMood
+        matchesSearch && matchesMood && matchesTag
     }
 
     LazyColumn(
@@ -259,7 +281,7 @@ fun RitualJournalScreen(
         }
 
         item {
-            // "New entry" Box
+            // "New entry" Box with Rich-Text Editor, Timestamps & Tag Categorizer
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -269,7 +291,10 @@ fun RitualJournalScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -284,7 +309,7 @@ fun RitualJournalScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "New entry",
+                                text = "New Entry",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = EnochianGold
@@ -308,98 +333,80 @@ fun RitualJournalScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Ritual Outcome Input
-                    OutlinedTextField(
+                    // Rich-Text Editor for Ritual Outcome & Observations
+                    RichTextEditor(
                         value = inlineOutcomeNotes,
                         onValueChange = { inlineOutcomeNotes = it },
-                        modifier = Modifier.fillMaxWidth().testTag("new_entry_outcome_input"),
-                        label = { Text("Ritual Outcome") },
-                        placeholder = { Text("Describe ritual results, manifestations & observations...") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EnochianGold,
-                            unfocusedBorderColor = GoldOutline
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        maxLines = 3
+                        label = "Ritual Outcome & Observations (Rich-Text)",
+                        placeholder = "Describe ritual manifestations, **bold visions**, *whispers*, [HH:mm:ss]...",
+                        minLines = 3,
+                        testTagPrefix = "inline_outcome_rich"
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Mood Input
-                    Text(
-                        text = "Mood:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = EnochianGold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        items(availableMoods.filter { it != "All Moods" }) { moodOption ->
-                            FilterChip(
-                                selected = inlineMood == moodOption,
-                                onClick = { inlineMood = moodOption },
-                                label = { Text(moodOption, fontSize = 11.sp) },
-                                modifier = Modifier.testTag("inline_mood_${moodOption.replace(" ", "_")}"),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = EnochianGold,
-                                    selectedLabelColor = Color.Black,
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    labelColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = GoldOutline,
-                                    selectedBorderColor = EnochianGold,
-                                    enabled = true,
-                                    selected = inlineMood == moodOption
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Insights Input
-                    val inlineInsightsWordCount = if (inlineInsights.isBlank()) 0 else inlineInsights.trim().split(Regex("\\s+")).size
-                    OutlinedTextField(
+                    // Rich-Text Editor for Spiritual Insights
+                    RichTextEditor(
                         value = inlineInsights,
                         onValueChange = { inlineInsights = it },
-                        modifier = Modifier.fillMaxWidth().testTag("new_entry_insights_input"),
-                        label = { Text("Insights") },
-                        placeholder = { Text("Record spiritual revelations, visions, or lessons learned...") },
-                        supportingText = {
-                            Text(
-                                text = "$inlineInsightsWordCount ${if (inlineInsightsWordCount == 1) "word" else "words"}",
-                                fontSize = 11.sp,
-                                color = EnochianGold,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.End
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EnochianGold,
-                            unfocusedBorderColor = GoldOutline
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        maxLines = 3
+                        label = "Spiritual Insights & Revelations (Rich-Text)",
+                        placeholder = "Record esoteric reflections, ==highlights==, > chants, #tags...",
+                        minLines = 3,
+                        testTagPrefix = "inline_insights_rich"
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    // Tag Categorizer
+                    TagCategorizer(
+                        selectedTags = inlineTags,
+                        onTagsChanged = { inlineTags = it }
+                    )
+
+                    // Mood Selector
+                    Column {
+                        Text(
+                            text = "Ritual Mood & State:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EnochianGold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(availableMoods.filter { it != "All Moods" }) { moodOption ->
+                                FilterChip(
+                                    selected = inlineMood == moodOption,
+                                    onClick = { inlineMood = moodOption },
+                                    label = { Text(moodOption, fontSize = 11.sp) },
+                                    modifier = Modifier.testTag("inline_mood_${moodOption.replace(" ", "_")}"),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = EnochianGold,
+                                        selectedLabelColor = Color.Black,
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        labelColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        borderColor = GoldOutline,
+                                        selectedBorderColor = EnochianGold,
+                                        enabled = true,
+                                        selected = inlineMood == moodOption
+                                    )
+                                )
+                            }
+                        }
+                    }
 
                     // Save Entry Button
                     Button(
                         onClick = {
                             if (inlineOutcomeNotes.isNotBlank() || inlineInsights.isNotBlank()) {
                                 val computedTitle = if (inlineOutcomeNotes.length > 30) {
-                                    inlineOutcomeNotes.take(30) + "..."
+                                    inlineOutcomeNotes.take(30).replace(Regex("[*#>`=]+"), "") + "..."
                                 } else if (inlineOutcomeNotes.isNotBlank()) {
-                                    inlineOutcomeNotes
+                                    inlineOutcomeNotes.replace(Regex("[*#>`=]+"), "")
                                 } else {
                                     "Ritual Working"
                                 }
+
+                                val tagsFormatted = inlineTags.joinToString(",")
 
                                 onSaveJournalEntry(
                                     computedTitle,
@@ -410,12 +417,14 @@ fun RitualJournalScreen(
                                     inlineOutcomeNotes,
                                     inlineInsights,
                                     5,
-                                    inlineMood
+                                    inlineMood,
+                                    tagsFormatted
                                 )
 
                                 inlineOutcomeNotes = ""
                                 inlineInsights = ""
                                 inlineMood = "Serene 🕯️"
+                                inlineTags = listOf("evocation")
                             }
                         },
                         modifier = Modifier.fillMaxWidth().testTag("save_new_entry_box_button"),
@@ -789,45 +798,92 @@ fun RitualJournalScreen(
         }
 
         item {
-            // M3 Mood Filter Bar
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = EnochianGold, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Filter by Mood:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(availableMoods) { moodOption ->
-                        FilterChip(
-                            selected = selectedMoodFilter == moodOption,
-                            onClick = { selectedMoodFilter = moodOption },
-                            label = {
-                                Text(
-                                    text = moodOption,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selectedMoodFilter == moodOption) FontWeight.Bold else FontWeight.Normal
+            // M3 Filters: Mood & Category Tags
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Mood Filter
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = EnochianGold, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Filter by Mood:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EnochianGold)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(availableMoods) { moodOption ->
+                            FilterChip(
+                                selected = selectedMoodFilter == moodOption,
+                                onClick = { selectedMoodFilter = moodOption },
+                                label = {
+                                    Text(
+                                        text = moodOption,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (selectedMoodFilter == moodOption) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                modifier = Modifier.testTag("mood_filter_${moodOption.replace(" ", "_")}"),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = EnochianGold,
+                                    selectedLabelColor = Color.Black,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = GoldOutline,
+                                    selectedBorderColor = EnochianGold,
+                                    enabled = true,
+                                    selected = selectedMoodFilter == moodOption
                                 )
-                            },
-                            modifier = Modifier.testTag("mood_filter_${moodOption.replace(" ", "_")}"),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = EnochianGold,
-                                selectedLabelColor = Color.Black,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                borderColor = GoldOutline,
-                                selectedBorderColor = EnochianGold,
-                                enabled = true,
-                                selected = selectedMoodFilter == moodOption
                             )
-                        )
+                        }
+                    }
+                }
+
+                // Tag Category Filter
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.LocalOffer, contentDescription = "Tags", tint = CelestialCyan, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Filter by Category Tag:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CelestialCyan)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(allAvailableTags) { tagOption ->
+                            val isSelected = selectedTagFilter == tagOption
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedTagFilter = tagOption },
+                                label = {
+                                    Text(
+                                        text = if (tagOption == "All Tags") tagOption else "#$tagOption",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                modifier = Modifier.testTag("tag_filter_${tagOption.replace(" ", "_")}"),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = CelestialCyan,
+                                    selectedLabelColor = Color.Black,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = GoldOutline,
+                                    selectedBorderColor = CelestialCyan,
+                                    enabled = true,
+                                    selected = isSelected
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -856,7 +912,7 @@ fun RitualJournalScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (journalEntries.isEmpty()) "Tap the '+' button to log ritual outcomes, planetary hours, and spiritual insights." else "Try adjusting your search query or mood filter.",
+                            text = if (journalEntries.isEmpty()) "Tap the '+' button to log ritual outcomes, planetary hours, and spiritual insights." else "Try adjusting your search query, mood, or tag filter.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -957,6 +1013,42 @@ fun RitualJournalScreen(
                             )
                         }
 
+                        // Tags Chips if available
+                        val entryTagsList = remember(entry.tags) {
+                            entry.tags.split(",", " ")
+                                .map { it.trim().removePrefix("#") }
+                                .filter { it.isNotBlank() }
+                        }
+                        if (entryTagsList.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(entryTagsList) { tagItem ->
+                                    SuggestionChip(
+                                        onClick = { selectedTagFilter = tagItem },
+                                        label = { Text("#$tagItem", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                                        icon = {
+                                            Icon(
+                                                Icons.Default.Tag,
+                                                contentDescription = null,
+                                                tint = CelestialCyan,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        },
+                                        colors = SuggestionChipDefaults.suggestionChipColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            labelColor = CelestialCyan
+                                        ),
+                                        border = SuggestionChipDefaults.suggestionChipBorder(
+                                            borderColor = GoldOutline,
+                                            enabled = true
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
                         if (matchedSentiment != null) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Box(
@@ -992,20 +1084,36 @@ fun RitualJournalScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Outcome: ${entry.outcomeNotes}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Outcome & Reflections:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EnochianGold
+                        )
+                        RichTextReflectionView(
+                            text = entry.outcomeNotes,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                .padding(8.dp)
                         )
 
                         if (entry.insights.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Insights: ${entry.insights}",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "Spiritual Insights:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = CelestialCyan
+                            )
+                            RichTextReflectionView(
+                                text = entry.insights,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                    .padding(8.dp)
                             )
                         }
 
@@ -1123,32 +1231,31 @@ fun RitualJournalScreen(
                     }
 
                     item {
-                        OutlinedTextField(
+                        RichTextEditor(
                             value = outcomeNotes,
                             onValueChange = { outcomeNotes = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Outcome & Observations") },
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = EnochianGold, unfocusedBorderColor = GoldOutline)
+                            label = "Outcome & Observations (Rich-Text)",
+                            placeholder = "Record results, visions, [HH:mm:ss]...",
+                            minLines = 3,
+                            testTagPrefix = "dialog_outcome_rich"
                         )
                     }
 
                     item {
-                        val insightsWordCount = if (insights.isBlank()) 0 else insights.trim().split(Regex("\\s+")).size
-                        OutlinedTextField(
+                        RichTextEditor(
                             value = insights,
                             onValueChange = { insights = it },
-                            modifier = Modifier.fillMaxWidth().testTag("journal_insights_input"),
-                            label = { Text("Spiritual Insights & Visions") },
-                            supportingText = {
-                                Text(
-                                    text = "$insightsWordCount ${if (insightsWordCount == 1) "word" else "words"}",
-                                    fontSize = 11.sp,
-                                    color = EnochianGold,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.End
-                                )
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = EnochianGold, unfocusedBorderColor = GoldOutline)
+                            label = "Spiritual Insights & Visions (Rich-Text)",
+                            placeholder = "Record esoteric insights, **emphasis**, sacred glyphs...",
+                            minLines = 3,
+                            testTagPrefix = "dialog_insights_rich"
+                        )
+                    }
+
+                    item {
+                        TagCategorizer(
+                            selectedTags = newEntryTags,
+                            onTagsChanged = { newEntryTags = it }
                         )
                     }
 
@@ -1237,12 +1344,14 @@ fun RitualJournalScreen(
                                 outcomeNotes,
                                 insights,
                                 rating,
-                                selectedMoodForNewEntry
+                                selectedMoodForNewEntry,
+                                newEntryTags.joinToString(",")
                             )
                             entryTitle = ""
                             intention = ""
                             outcomeNotes = ""
                             insights = ""
+                            newEntryTags = listOf("evocation")
                             selectedMoodForNewEntry = "Serene 🕯️"
                             isShowNewEntryDialog = false
                         }
